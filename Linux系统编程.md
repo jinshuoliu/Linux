@@ -1271,13 +1271,1022 @@ int main(void)
 
 #### 2.2.2. stat
 
+stat既有命令也有同名函数，用来获取文件Inode里主要信息，stat跟踪符号链接，lstat不跟踪符号链接
+
+stat里时间
+
+- atime：最近访问时间
+- mtime：最近更改时间，指最近修改文件内容的时间
+- ctime：最近改动时间，指最近改动Inode的时间
+
+```cpp
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+int stat(const char *path, struct stat *buf);
+int fstat(int fd, struct stat *buf);
+int lstat(const char *path, struct stat *buf);
+
+struct stat {
+   dev_t st_dev; /* ID of device containing file */
+   ino_t st_ino; /* inode number */
+   mode_t st_mode; /* protection */
+   nlink_t st_nlink; /* number of hard links */
+   uid_t st_uid; /* user ID of owner */
+   gid_t st_gid; /* group ID of owner */
+   dev_t st_rdev; /* device ID (if special file) */
+   off_t st_size; /* total size, in bytes */
+   blksize_t st_blksize; /* blocksize for file system I/O */
+   blkcnt_t st_blocks; /* number of 512B blocks allocated */
+   time_t st_atime; /* time of last access */
+   time_t st_mtime; /* time of last modification */
+   time_t st_ctime; /* time of last status change */
+};
+```
+
+#### 2.2.3. access
+
+```cpp
+#include <unistd.h>
+
+int access(const char *pathname, int mode);
+```
+
+按实际用户ID和实际组ID测试,跟踪符号链接
+
+***参数mode***
+
+```txt
+R_OK 是否有读权限
+W_OK 是否有写权限
+X_OK 是否有执行权限
+F_OK 测试一个文件是否存在
+```
+
+实际用户ID：
+有效用户ID：sudo执行时，有效用户ID是root，实际用户ID是登录的用户
+
+#### 2.2.4. chmod
+
+```cpp
+#include <sys/stat.h>
+int chmod(const char *path, mode_t mode);
+int fchmod(int fd, mode_t mode);
+```
+
+***mode***
+
+||列2|列3|
+|--|--|--|
+|S_ISUID|04000|执行时设置用户ID|
+|S_ISGID|02000|执行时设置组ID|
+|S_ISVTX|01000|黏住位，让它尽量放在内存中，不被踢出去|
+|S_IRUSR|00400|所有者-读|
+|S_IWUSR|00200|所有者-写|
+|S_IXUSR|00100|所有者-执行|
+|S_IRGRP|00040|组-读|
+|S_IWGRP|00020|组-写|
+|S_IXGRP|00010|组-执行|
+|S_IROTH|00004|其他-读|
+|S_IWOTH|00002|其他-写|
+|S_IXOTH|00001|其他-执行|
+
+#### 2.2.5. chown
+
+```cpp
+#include <unistd.h>
+
+int chown(const char *path, uid_t owner, gid_t group);
+int fchown(int fd, uid_t owner, gid_t group);
+int lchown(const char *path, uid_t owner, gid_t group);
+```
+
+chown使用时必须拥有root权限。
+
+#### 2.2.6. utime
+
+更改文件的更改时间和改动时间
+
+#### 2.2.7. truncate
+
+截断一个文件
+
+```cpp
+#include <unistd.h>
+#include <sys/types.h>
+
+int truncate(const char *path, off_t length);
+int ftruncate(int fd, off_t length);
+```
+
+#### 2.2.8. link
+
+***link***
+
+创建一个硬链接
+
+当rm删除文件时，只是删除了目录下的记录项和把inode硬链接计数减1，当硬链接计数减为0时，才会真正的删除文件。
+
+- 硬链接通常要求位于同一文件系统中,POSIX允许跨文件系统
+- 符号链接没有文件系统限制
+- 通常不允许创建目录的硬链接，某些unix系统下超级用户可以创建目录的硬链接
+- 创建目录项以及增加硬链接计数应当是一个原子操作
+
+***unlink***
+
+```txt
+int unlink(const char *pathname)
+
+1. 如果是符号链接，删除符号链接
+2. 如果是硬链接，硬链接数减1，当减为0时，释放数据块和inode
+3. 如果文件硬链接数为0，但有进程已打开该文件，并持有文件描述符，则等该进程关闭该文件时，kernel才真正去删除该文件
+4. 利用该特性创建临时文件，先open或creat创建一个文件，马上unlink此文件
+```
+
+***symlink***
+
+创建一个软链接
+
+```cpp
+int symlink(const char *oldpath, const char *newpath)
+```
+
+***readlink***
+
+读符号链接指向的文件名字，不读文件内容
+
+```cpp
+ssize_t readlink(const char *path, char *buf, size_t bufsiz)
+```
+
+#### 2.2.9. rename
+
+文件重命名
+
+```cpp
+#include <stdio.h>
+int rename(const char *oldpath, const char *newpath);
+```
+
+#### 2.2.10. chdir
+
+改变当前进程的工作目录
+
+```cpp
+#include <unistd.h>
+
+int chdir(const char *path);
+int fchdir(int fd);
+```
+
+#### 2.2.11. getcwd
+
+获取当前进程的工作目录
+
+```cpp
+#include <unistd.h>
+char *getcwd(char *buf, size_t size);
+```
+
+#### 2.2.12. pathconf
+
+系统允许最大存储的文件名、最大路径、最大缓冲区...
+
+```cpp
+#include <unistd.h>
+long fpathconf(int fd, int name);
+long pathconf(char *path, int name);
+```
+
+#### 2.2.13. 目录操作
+
+***mkdir***
+
+创建一个目录
+
+```cpp
+#include <sys/stat.h>
+#include <sys/types.h>
+int mkdir(const char *pathname, mode_t mode);
+```
+
+***rmdir***
+
+删除一个目录
+
+```cpp
+#include <unistd.h>
+int rmdir(const char *pathname);
+```
+
+***opendir***
+
+打开一个目录
+
+```cpp
+#include <sys/types.h>
+#include <dirent.h>
+
+DIR *opendir(const char *name);
+DIR *fdopendir(int fd);
+```
+
+***readdir***
+
+读一个目录
+
+```cpp
+#include <dirent.h>
+struct dirent *readdir(DIR *dirp);
+
+struct dirent {
+   ino_t d_ino; /* inode number */
+   off_t d_off; /* offset to the next dirent */
+   unsigned short d_reclen; /* length of this record */
+   unsigned char d_type; /* type of file; not supported by all file system types */
+   char d_name[256]; /* filename */
+};
+```
+
+readdir每次返回一条记录项，DIR*指针指向下一条记录项
+
+***rewinddir***
+
+把目录指针恢复到目录的起始位置
+
+```cpp
+#include <sys/types.h>
+#include <dirent.h>
+void rewinddir(DIR *dirp);
+```
+
+***telldir***
+
+返回目录指针所在的位置
+
+```cpp
+#include <dirent.h>
+long telldir(DIR *dirp);
+```
+
+***seekdir***
+
+移动目录指针的位置
+
+```cpp
+#include <dirent.h>
+void seekdir(DIR *dirp, long offset);
+```
+
+***closedir***
+
+关闭目录
+
+```cpp
+#include <sys/types.h>
+#include <dirent.h>
+int closedir(DIR *dirp);
+```
+
+***递归遍历目录***
+
+```cpp
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <string.h>
+#define MAX_PATH 1024
+
+/* dirwalk: apply fcn to all files in dir */
+void dirwalk(char *dir, void (*fcn)(char *))
+{
+   char name[MAX_PATH];
+   struct dirent *dp;
+   DIR *dfd;
+   if ((dfd = opendir(dir)) == NULL) {
+      fprintf(stderr, "dirwalk: can't open %s\n", dir);
+      return;
+   }
+   while ((dp = readdir(dfd)) != NULL) {
+      if (strcmp(dp->d_name, ".") == 0|| strcmp(dp->d_name, "..") == 0)
+         continue; /* skip self and parent */
+      if (strlen(dir)+strlen(dp->d_name)+2 > sizeof(name))
+         fprintf(stderr, "dirwalk: name %s %s too long\n",dir, dp->d_name);
+      else {
+         sprintf(name, "%s/%s", dir, dp->d_name);
+         (*fcn)(name);
+      }
+   }
+   closedir(dfd);
+}
+
+/* fsize: print the size and name of file "name" */
+void fsize(char *name)
+{
+   struct stat stbuf;
+   if (stat(name, &stbuf) == -1) {
+      fprintf(stderr, "fsize: can't access %s\n", name);
+      return;
+   }
+   if ((stbuf.st_mode & S_IFMT) == S_IFDIR) // 判断文件是否是目录
+      dirwalk(name, fsize); // 递归
+   printf("%8ld %s\n", stbuf.st_size, name);
+}
+
+int main(int argc, char **argv)
+{
+   if (argc == 1) /* default: current directory */
+      fsize(".");
+   else
+      while (--argc > 0
+         fsize(*++argv);
+   
+   return 0;
+}
+```
+
+#### 2.2.14. VFS虚拟文件系统
+
+因为Linux支持各种文件系统格式，想要使用一套命令来操作各种文件系统就需要Linux内核在各种不同的文件系统格式之上做了一个抽象层，使得文件、目录、读写访问等概念成为抽象层的概念，因此各种文件系统看起来用起来都一样，这个抽象层称为虚拟文件系统（VFS，Virtual Filesystem）
+
+![虚拟文件系统](MD/assert/Linux系统编程/2-2-14-虚拟文件系统.png)
+
+***dup/dup2***
+
+```cpp
+#include <unistd.h>
+
+int dup(int oldfd);
+int dup2(int oldfd, int newfd);
+```
+
+- 复制一个现存的文件描述符，使得两个文件描述符指向同一个文件结构体。
+  - File Status Flag和读写位置只保存一份在file结构体中，并且file结构体的引用计数是2。
+  - 如果两次open同一文件得到两个文件描述符，则每个描述符对应一个不同的file结构体，可以有不同的File Status Flag和读写位置。
+
+```cpp
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main(void)
+{
+   int fd, save_fd;
+   char msg[] = "This is a test\n";
+
+   fd = open("somefile", O_RDWR|O_CREAT, S_IRUSR|S_IWUSR);
+   if(fd<0) {
+      perror("open");
+      exit(1);
+   }
+
+   save_fd = dup(STDOUT_FILENO);
+   dup2(fd, STDOUT_FILENO);
+   close(fd);
+   write(STDOUT_FILENO, msg, strlen(msg));
+   dup2(save_fd, STDOUT_FILENO);
+   write(STDOUT_FILENO, msg, strlen(msg));
+   close(save_fd);
+
+   return 0;
+}
+```
+
+![示例](MD/assert/Linux系统编程/2-2-14-示例.png)
+
 ### 2.3. 进程
 
-#### 2.3.1. 进程控制原语
+每个进程在内核中都有一个进程控制块（PCB）来维护进程相关的信息，Linux内核的进程控制块是task_struct结构体。
 
-#### 2.3.2. 进程间通信
+- 进程id。系统中每个进程有唯一的id，在C语言中用pid_t类型表示，其实就是一个非负整数。
+- 进程的状态，有运行、挂起、停止、僵尸等状态。
+- 进程切换时需要保存和恢复的一些CPU寄存器。
+- 描述虚拟地址空间的信息。
+- 描述控制终端的信息。
+- 当前工作目录（Current Working Directory）。
+- umask掩码。
+- 文件描述符表，包含很多指向file结构体的指针。
+- 和信号相关的信息。
+- 用户id和组id。
+- 控制终端、Session和进程组。
+- 进程可以使用的资源上限（Resource Limit）。
 
-#### 2.3.3. 进程间关系
+![虚拟地址](MD/assert/Linux系统编程/2-3-虚拟地址.png)
+
+- 0-3G用户空间，3-4G内核空间都是虚拟地址，它会在运行是映射到真实的物理地址上，系统化会为每个进程开辟一块空间，但是所有的进程的内核空间都是指向同一块，但是需要创建不同的PCB。
+- 0-3四种状态，拥有四种处理的级别，0内核态权限最大，3用户态最小。
+  - 新创建一个进程的时候，它处于用户态，执行时会将它转换为内核态。
+
+#### 2.3.1. 进程环境、状态
+
+libc中定义的全局变量environ指向环境变量表，environ没有包含在任何头文件中，所以在使用时要用extern声明。
+
+```cpp
+#include <stdio.h>
+
+int main(void)
+{
+   extern char **environ;
+   int i;
+   for(i=0; environ[i]!=NULL; i++)
+      printf("%s\n", environ[i]);
+   return 0;
+}
+```
+
+按照惯例，环境变量字符串都是name=value这样的形式，大多数name由大写字母加下划线组成(环境变量定义了进程的运行环境)
+
+- 一般把name的部分叫做环境变量。
+- value的部分则是环境变量的值。
+- 查看环境变量:echo $环境变量
+***一些重要的环境变量***
+
+|环境变量|含义|
+|--|--|
+|PATH|可执行文件的搜索路径，可包含多个值，用:隔开|
+|SHELL|当前shell，通常是/bin/bash|
+|TERM|当前终端类型，图形终端通常是xterm，终端类型决定程序的输出方式|
+|LANG|语言和locale，决定了字符编码以及时间、货币等信息的显示格式|
+|HOME|当前用户主目录的路径|
+
+***getenv***
+
+查看环境变量表中name对应的value
+
+```cpp
+#include <stdlib.h>
+
+char *getenv(const char *name);
+// getenv的返回值是指向value的指针，若未找到则为NULL。
+```
+
+***setenv***
+
+修改环境变量
+
+```cpp
+#include <stdlib.h>
+
+int setenv(const char *name, const char *value, int rewrite);
+void unsetenv(const char *name);
+
+// putenv和setenv函数若成功则返回为0，若出错则返回非0。
+```
+
+setenv将环境变量name的值设置为value。如果已存在环境变量name，那么
+
+- 若rewrite非0，则覆盖原来的定义；
+- 若rewrite为0，则不覆盖原来的定义，也不返回错误。
+
+unsetenv删除name的定义。即使name没有定义也不返回错误。
+
+***进程状态***
+
+![进程状态](MD/assert/Linux系统编程/2-3-1-进程状态.png)
+
+***查看进程资源限制***
+
+![limits](MD/assert/Linux系统编程/2-3-1-limits.png)
+
+```cpp
+#include <sys/time.h>
+#include <sys/resource.h>
+
+int getrlimit(int resource, struct rlimit *rlim);
+int setrlimit(int resource, const struct rlimit *rlim);
+// 修改进程资源限制，软限制可改，最大值不能超过硬限制，硬限制只有root用户可以修改
+
+// cat /proc/self/limits
+// ulimit -a
+```
+
+#### 2.3.2. 进程控制原语
+
+##### fork
+
+创建一个子进程
+
+```cpp
+#include <unistd.h>
+pid_t fork(void);
+```
+
+![fork](MD/assert/Linux系统编程/2-3-2-fork.png)
+
+- fork函数，调用一次，返回两次
+  - 一次返回给父进程，返回子进程的PID
+  - 一次返回给子进程，返回0
+- 子进程完全继承父进程的东西，但是后续执行，父子进程的数据相互独立
+  - 读时共享，写时赋值。如果不需要改变值的数据，父子进程可以先暂时指向同一块数据，但是需要改变值的时候，就给子进程赋值出一份来，这种方法来节省内存
+
+![父子进程](MD/assert/Linux系统编程/2-3-2-父子进程同时运行.png)
+
+- 调用fork函数后，父进程创建一个子进程，他们两个同时运行，运行相同的代码，可以通过fork的返回值来控制逻辑
+
+```cpp
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+   pid_t pid;
+   char *message;
+   int n;
+
+   pid = fork();
+
+   if (pid < 0) {
+      perror("fork failed");
+      exit(1);
+   }
+   
+   if (pid == 0) {
+      message = "This is the child\n";
+      n = 6;
+   } else {
+      message = "This is the parent\n";
+      n = 3;
+   }
+
+   for(; n > 0; n--) {
+      printf(message);
+      sleep(1);
+   }
+
+   return 0;
+}
+```
+
+***getpid/gteppid***
+
+```cpp
+#include <sys/types.h>
+#include <unistd.h>
+
+pid_t getpid(void); //返回调用进程的PID号
+pid_t getppid(void); //返回调用进程父进程的PID号
+```
+
+***设置用户ID，让普通用户执行此文件的时候，可以拥有该文件拥有者的权限***
+
+![设置用户ID的命令操作](MD/assert/Linux系统编程/2-3-2-chmod.png)
+
+***getuid***
+
+```cpp
+#include <unistd.h>
+#include <sys/types.h>
+
+uid_t getuid(void); //返回实际用户ID
+uid_t geteuid(void); //返回有效用户ID
+```
+
+***getgid***
+
+```cpp
+#include <unistd.h>
+#include <sys/types.h>
+
+gid_t getgid(void); //返回实际用户组ID
+gid_t getegid(void); //返回有效用户组ID
+```
+
+***vfork***
+
+- 创建子进程的时候不去复制父进程的数据，这是在早期fork的读时共享、写时复制性能太差的时候使用。
+- 用于fork后马上调用exec函数
+- 父子进程，共用同一地址空间,子进程如果没有马上exec而是修改了父进程出得到的变量值，此修改会在父进程中生效
+- 设计初衷，提高系统效率，减少不必要的开销
+- 现在fork已经具备读时共享写时复制机制，vfork逐渐废弃
+
+##### exec族
+
+它用于用fork创建子进程后调用exec函数后子进程执行另一个程序。调用exec并不创建新进程，所以调用exec前后该进程的id并未改变。
+
+当进程调用一种exec函数时，该进程的用户空间代码和数据完全被新程序替换，从新程序的启动例程开始执行。
+
+![exec](MD/assert/Linux系统编程/2-3-2-exec.png)
+
+```cpp
+#include <unistd.h>
+
+int execl(const char *path, const char *arg, ...);
+int execlp(const char *file, const char *arg, ...);
+int execle(const char *path, const char *arg, ..., char *const envp[]);
+int execv(const char *path, char *const argv[]);
+int execvp(const char *file, char *const argv[]);
+int execve(const char *path, char *const argv[], char *const envp[]);
+
+// 这些函数如果调用成功则加载新的程序从启动代码开始执行，不再返回，如果调用出错则返回-1，所以exec函数只有出错的返回值而没有成功的返回值。
+
+// 调用示例
+char *const ps_argv[] ={"ps", "-o", "pid,ppid,pgrp,session,tpgid,comm", NULL};
+char *const ps_envp[] ={"PATH=/bin:/usr/bin", "TERM=console", NULL};
+execl("/bin/ps", "ps", "-o", "pid,ppid,pgrp,session,tpgid,comm", NULL);
+execv("/bin/ps", ps_argv);
+execle("/bin/ps", "ps", "-o", "pid,ppid,pgrp,session,tpgid,comm", NULL, ps_envp);
+execve("/bin/ps", ps_argv, ps_envp);
+execlp("ps", "ps", "-o", "pid,ppid,pgrp,session,tpgid,comm", NULL);
+execvp("ps", ps_argv);
+```
+
+事实上，只有execve是真正的系统调用，其它五个函数最终都调用execve，所以execve在man手册第2节，其它函数在man手册第3节。这些函数之间的关系如下图所示。
+
+![exec函数族](MD/assert/Linux系统编程/2-3-2-exec函数族.png)
+
+- l 命令行参数列表
+- p 搜素file时使用path变量
+- v 使用命令行参数数组
+- e 使用环境变量数组,不使用进程原有的环境变量，设置新加载程序运行的环境变量
+
+由于exec函数只有错误返回值，只要返回了一定是出错了，所以不需要判断它的返回值，直接在后面调用perror即可。
+
+***示例***
+
+```cpp
+/* upper.c 
+功能：把从标准输入读到的小写字母转换为大写字母，并输出到标准输出上
+*/
+#include <stdio.h>
+
+int main(void)
+{
+   int ch;
+   
+   while((ch = getchar()) != EOF) {
+      putchar(toupper(ch)); // toupper:把小写字母转换为大写字母。
+   }
+   
+   return 0;
+}
+
+/* wrapper.c */
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+
+int main(int argc, char *argv[])
+{
+   int fd;
+
+   if (argc != 2) {
+      fputs("usage: wrapper file\n", stderr);
+      exit(1);
+   }
+   
+   fd = open(argv[1], O_RDONLY); // 打开一个文件
+   if(fd<0) {
+      perror("open");
+      exit(1);
+   }
+
+   dup2(fd, STDIN_FILENO); // 把文件的文件描述符给标准输入
+   close(fd);
+
+   execl("./upper", "upper", NULL); // 调用upper，将标准输入的内容转换为大写并输出到标准输出上
+   perror("exec ./upper");
+   exit(1);
+}
+```
+
+##### wait\waitpid
+
+- 僵尸进程: 子进程退出，父进程没有回收子进程资源（PCB），则子进程变成僵尸进程
+- 孤儿进程: 父进程先于子进程结束，则子进程成为孤儿进程,子进程的父进程成为1号进程init进程，称为init进程领养孤儿进程
+
+```cpp
+#include <sys/types.h>
+#include <sys/wait.h>
+
+pid_t wait(int *status);
+pid_t waitpid(pid_t pid, int *status, int options);
+
+// pid的值
+/*
+< -1 回收指定进程组内的任意子进程
+-1 回收任意子进程
+0 回收和当前调用waitpid一个组的所有子进程
+> 0 回收指定ID的子进程
+*/
+
+// status的值
+/*
+NULL:不需要去管是什么信号杀死的子进程
+非NULL:通过man去查看，会有一系列的宏
+如果参数status不是空指针，则子进程的终止信息通过这个参数传出，如果只是为了同步而不关心子进程的终止信息，可以将status参数指定为NULL。
+*/
+
+// options的值
+/*
+WNOHANG:如果没有子进程结束，则立即返回。
+WUNTRACED:如果子进程已停止也会返回，即使未指定此项，也会提供已停止的跟踪子项的状态。
+WCONTTNUED:如果停止的子进程通过SIGCONT恢复，也会返回。
+*/
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;一个进程在终止时会关闭所有文件描述符，释放在用户空间分配的内存，但它的PCB还保留着，内核在其中保存了一些信息：如果是正常终止则保存着退出状态，如果是异常终止则保存着导致该进程终止的信号是哪个。
+
+这个进程的父进程可以调用wait或waitpid获取这些信息，然后彻底清除掉这个进程。这样可以有效清理僵尸进程。
+
+父进程调用wait或waitpid时可能会：
+
+- 阻塞（如果它的所有子进程都还在运行）。
+- 带子进程的终止信息立即返回（如果一个子进程已终止，正等待父进程读取其终止信息）。
+- 出错立即返回（如果它没有任何子进程）。
+
+这两个函数的区别是：
+
+- 如果父进程的所有子进程都还在运行，调用wait将使父进程阻塞，而调用waitpid时如果在options参数中指定WNOHANG可以使父进程不阻塞而立即返回0。
+- wait等待第一个终止的子进程，而waitpid可以通过pid参数指定等待哪一个子进程。
+
+调用wait和waitpid不仅可以获得子进程的终止信息，还可以使父进程阻塞等待子进程终止，起到进程间同步的作用。
+
+#### 2.3.3. 进程间通信
+
+进程间数据是不透明的，如果想要进程间通信，就需在内核开辟一块缓冲区，把通信需要的数据拷贝到缓冲区中再拷贝走需要的数据，内核提供的这种机制就是进程间通信(IPC)。
+
+![进程间通信](MD/assert/Linux系统编程/2-3-3-进程间通信.png)
+
+##### pipe管道
+
+管道是一种最基本的IPC机制，通常是由环形队列实现的，它是单向的，要确定通信方向。
+
+pipe管道由pipe函数创建
+
+```cpp
+#include <unistd.h>
+
+int pipe(int filedes[2]);
+// pipe函数调用成功返回0，调用失败返回-1。
+```
+
+调用pipe函数时在内核中开辟一块缓冲区（称为管道）用于通信，它有一个读端一个写端，然后通过filedes参数传出给用户程序两个文件描述符，filedes[0]指向管道的读端，filedes[1]指向管道的写端。
+
+管道作用于**有血缘关系的进程之间**,通过fork来传递。
+
+***开辟了管道之后实现两个进程间的通信***
+
+![pipe管道](MD/assert/Linux系统编程/2-3-3-pipe管道.png)
+
+- 父进程创建管道
+- 子进程继承管道
+- 通信方向：父->子
+  - 父进程关闭读
+  - 子进程关闭写
+- 通信方向：子->父
+  - 父进程关闭写
+  - 子进程关闭读
+
+```cpp
+// 例
+#include <stdlib.h>
+#include <unistd.h>
+#define MAXLINE 80
+
+int main(void)
+{
+   int n;
+   int fd[2];
+   pid_t pid;
+   char line[MAXLINE];
+   if (pipe(fd) < 0) {
+      perror("pipe");
+      exit(1);
+   }
+
+   if ((pid = fork()) < 0) {
+      perror("fork");
+      exit(1);
+   }
+
+   if (pid > 0) { /* parent */
+      close(fd[0]);
+      write(fd[1], "hello world\n", 12);
+      wait(NULL);
+   } else { /* child */
+      close(fd[1]);
+      n = read(fd[0], line, MAXLINE);
+      write(STDOUT_FILENO, line, n);
+   }
+
+   return 0;
+}
+```
+
+管道使用时的几种情况：
+
+- 写关闭，读端读完管道中的内容的时候，再次读，返回0相当于读到EOF。
+- 写端未关闭，写段暂时无数据，读端读完管道里数据时，再次读，阻塞。
+- 读端关闭，写段写管道，产生SIGPIPE信号，写进程默认情况会终止进程。
+- 读端未读管道数据，当写端写满管道后，再次写，阻塞。
+
+***非阻塞管道***, fcntl函数设置O_NONBLOCK标志。
+
+fpathconf(int fd, int name)***测试管道缓冲区大小***，name参数设置:_PC_PIPE_BUF
+
+##### fifo有名管道
+
+创建一个有名管道，解决无血缘关系的进程间的通信
+
+![fifo](MD/assert/Linux系统编程/2-3-3-fifo.png)
+
+***通过命令创建***
+
+![命令创建fifo](MD/assert/Linux系统编程/2-3-3-命令创建fifo.png)
+
+***通过函数创建***
+
+```cpp
+#include <sys/types.h>
+#include <sys/stat.h>
+
+int mkfifo(const char *pathname, mode_t mode);
+```
+
+- 当只写打开FIFO管道时，如果没有FIFO没有读端打开，则open写打开会阻塞。
+- FIFO内核实现时可以支持双向通信。（pipe单向通信，因为父子进程共享同一个file结构体）
+- FIFO可以一个读端，多个写端；也可以一个写端，多个读端。
+
+##### 内存共享映射
+
+***mmap/munmap***
+
+把磁盘文件的一部分直接映射到内存，这样文件的位置直接就有对应的内存地址，对文件的读写使用指针来操作，不需要使用read/write函数。
+
+![映射](MD/assert/Linux系统编程/2-3-3-映射.png)
+
+```cpp
+#include <sys/mman.h>
+
+void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+// addr:建立映射的位置，通常为NULL，表示从0地址附近寻找合适的位置。如果选择的位置不可使用，就从附近寻找合适的位置。
+// length:需要映射的那部分文件的长度
+/* port(页面属性)参数的四种取值
+* PROT_EXEC:表示映射的这一段可执行，例如映射共享库
+* PROT_READ:表示映射的这一段可读
+* PROT_WRITE:表示映射的这一段可写
+* PROT_NONE:表示映射的这一段不可访问
+*/
+/* flags参数最重要的两种
+* MAP_SHARED:多个进程共享同一文件，一个进程对映射的内存做了修改，另一个进程也会看到这种变化。
+* MAP_PRIVATE:多个进程对同一个文件的映射不共享，一个进程对映射的内存做了修改，另一个进程并不会看到这种变化，也不会真的写到文件中去。
+*/
+// fd:文件描述符，要共享的磁盘文件
+// offset:偏移量，要映射的文件从什么位置开始。偏移量必须是4K(一页)的整数倍
+// 如果mmap成功则返回映射首地址，如果出错则返回常数MAP_FAILED。
+// 解除映射:进程终止时自动解除/调用munmap解除映射
+int munmap(void *addr, size_t length);
+// 成功返回0，失败返回-1
+```
+
+- 用于进程间通信时，一般设计成结构体，来传输通信的数据
+- 进程间通信的文件，应该设计成临时文件
+- 当报总线错误时，优先查看共享文件是否有存储空间
+
+***进程间共享通信***
+
+```cpp
+/* process_mmap_w.c*/
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#define MAPLEN 0x1000
+
+struct STU {
+   int id;
+   char name[20];
+   char sex;
+};
+
+void sys_err(char *str, int exitno)
+{
+   perror(str);
+   exit(exitno);
+}
+
+int main(int argc, char *argv[])
+{
+   struct STU *mm;
+   int fd, i = 0;
+   if (argc < 2) {
+      printf("./a.out filename\n");
+      exit(1);
+   }
+   fd = open(argv[1], O_RDWR | O_CREAT, 0777);
+   
+   if (fd < 0)
+      sys_err("open", 1);
+   if (lseek(fd, MAPLEN-1, SEEK_SET) < 0)
+      sys_err("lseek", 3);
+   if (write(fd, "\0", 1) < 0)
+      sys_err("write", 4);
+   
+   mm = mmap(NULL, MAPLEN, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+   if (mm == MAP_FAILED)
+      sys_err("mmap", 2);
+   close(fd);
+   
+   while (1) {
+      mm->id = i;
+      sprintf(mm->name, "zhang-%d", i);
+      if (i % 2 == 0)
+         mm->sex = 'm';
+      else
+         mm->sex = 'w';
+      i++;
+      sleep(1);
+   }
+
+   munmap(mm, MAPLEN);
+   
+   return 0;
+}
+```
+
+```cpp
+/* process_mmap_r.c*/
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#define MAPLEN 0x1000
+
+struct STU {
+   int id;
+   char name[20];
+   char sex;
+};
+
+void sys_err(char *str, int exitno)
+{
+   perror(str);
+   exit(exitno);
+}
+
+int main(int argc, char *argv[])
+{
+   struct STU *mm;
+   int fd, i = 0;
+   
+   if (argc < 2) {
+      printf("./a.out filename\n");
+      exit(1);
+   }
+   fd = open(argv[1], O_RDWR);
+   
+   if (fd < 0)
+      sys_err("open", 1);
+
+   mm = mmap(NULL, MAPLEN, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+   if (mm == MAP_FAILED)
+      sys_err("mmap", 2);
+   close(fd);
+   unlink(argv[1]);
+
+   while (1) {
+      printf("%d\n", mm->id);
+      printf("%s\n", mm->name);
+      printf("%c\n", mm->sex);
+      sleep(1);
+   }
+
+   munmap(mm, MAPLEN);
+   
+   return 0;
+}
+```
+
+##### Unix Domain Socket
+
+```txt
+fattager@ubuntu:~$ ls -l /var/run/
+总用量 72
+srw-rw-rw- 1 root root 0 9月 15 18:18 acpid.socket
+...
+srw-rw-rw- 1 root root 0 9月 15 18:18 rpcbind.sock
+```
+
+![本地聊天室](MD/assert/Linux系统编程/2-3-3-本地聊天室.png)
+
+***本地聊天室***
+
+#### 2.3.4. 进程间关系
 
 ### 2.4. 信号
 
