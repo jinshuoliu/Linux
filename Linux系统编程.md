@@ -4612,7 +4612,7 @@ char *strerror_r(int errnum, char *buf, size_t buflen);
 
 ## 6. 小项目
 
-### 5.1. myshell
+### 6.1. myshell
 
 用讲过的各种C函数实现一个简单的交互式Shell，要求：
 
