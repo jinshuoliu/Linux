@@ -21,20 +21,20 @@
    4. 信号
    5. 线程
       1. 线程控制原语
-      2. 线程同步机制
-   6. 网络编程
-      1. socket套接字
-      2. TCP/IP/UDP
-      3. 并发服务器开发
-         1. 多进程并发
-         2. 多线程并发
-         3. 异步I/O
-            1. epoll
-            2. select
-            3. poll
-3. shell编程
+   6. 线程同步机制
+3. 网络编程
+   1. socket套接字
+   2. TCP/IP/UDP
+   3. 并发服务器开发
+      1. 多进程并发
+      2. 多线程并发
+      3. 异步I/O
+         1. epoll
+         2. select
+         3. poll
+4. shell编程
    1. 正则表达式
-4. 数据库
+5. 数据库
 
 ## 1. Linux基本使用
 
@@ -60,6 +60,8 @@
 - ctrl + shift + n：创建新终端
 
 ### 1.1. Linux基本命令
+
+#### 简单命令
 
 |命令| 功能 |
 |--|--|
@@ -682,7 +684,7 @@ vi的三种工作模式：
 | ^和$ | 移动到行首、行末 |
 | G和gg | 移动到文档的最后一行、第一行 |
 | ctrl+f、ctrl+b | 向前翻屏、向后翻屏 |
-|ctrl+d、ctrl+u  |  向前半屏、向后半屏|
+| ctrl+d、ctrl+u  |  向前半屏、向后半屏 |
 | { 和 } | 向上移动一段，向后移动一段 |
 | w和b |w向前移动一个单词、b向后移动一个单词  |
 
@@ -726,7 +728,7 @@ vi的三种工作模式：
 |  | vim -on file1，file2...：水平分屏 |
 | 关闭分屏 |  |
 |  | ctrl+w c ：关闭当前窗口 |
-|  | ctrl+w q：如果当前窗口为最后一个就退出vim |
+|  | ctrl+w q ：如果当前窗口为最后一个就退出vim |
 | 在编辑中分屏 |  |
 |  | sp：上下分屏，后面可以跟文件名 |
 |  | ctrl+w s：上下分割当前打开的文件 |
@@ -875,7 +877,158 @@ binutils一组用于编译、链接、汇编和其他调试目的的程序，包
 
 ### 1.5. 调试器 GDB
 
-### 1.6. Makefile
+它是一款非常强大的调试工具，可以随时查看程序中所有的内部状态。
+
+编译程序的时候需要加上-g
+
+- gcc -g main.c -o main
+
+#### 常用命令
+
+|命令|简写|作用|
+|--|--|--|
+|help|h|按模块列出命令类|
+|help class||查看某一类型的具体命令|
+|list|l|查看代码，可跟行号和函数名|
+|quit|q|退出gdb|
+|run|r|全速运行程序|
+|start||单步执行，运行程序，停在第一行执行语句|
+|next|n|逐过程执行|
+|step|s|逐语句执行，遇到函数，调到函数内执行|
+|backtrace|bt|查看函数的调用的栈帧和层级关系|
+|info|i|查看GDB内部局部变量的数值,info breakpoints|
+|frame|f|切换函数的栈帧|
+|finish||结束当前函数，返回到函数调用点|
+|set var||设置变量的值 set var num=10|
+|run argv[1] argv[2]||调试时命令行传参|
+|print|p|打印变量和地址|
+|break|b|设置断点，可根据行号和函数名|
+|delete|d|删除断点 d breakpoints NUM|
+|display||设置观察变量|
+|undisplay||取消观察变量|
+|continue|c|继续全速运行剩下的代码|
+|enable breakpoints||启用断点|
+|disable breakpoints||禁用断点|
+|x||查看内存 x/20xw 显示20个单元，16进制，4字节每单元|
+|watch||被设置观察点的变量发生修改时，打印显示|
+|core文件||ulimit -c 1024 开启core文件，调试时 gdb a.out core|
+
+#### gdb调试模式
+
+- run:全速运行
+- start:单步调试
+- set follow-fork-mode child
+
+### 1.6. Makefile项目管理工具
+
+#### 用途
+
+- 项目代码编译管理
+- 节省编译项目时间
+- 一次编写终身受益
+- 操作示例文件:add.c sub.c mul.c dive.c main.c
+
+#### 基本规则
+
+通常是建立一个Makefile的文件，向文件中输入类似下面的内容，在命令行使用make命令执行
+
+```txt
+目标:依赖(条件)
+   命令
+
+all:add.c sub.c dive.c mul.c main.c
+   gcc add.c sub.c dive.c mul.c main.c -o app
+
+#阶段一
+#all:
+#  gcc add.c sub.c dive.c mul.c main.c -o app
+
+#阶段二
+app:add.o sub.o dive.o mul.o main.o
+   gcc add.o sub.o dive.o mul.o main.o -o app
+add.o:add.c
+   gcc -c add.c
+sub.o:sub.c
+   gcc -c sub.c
+dive.o:dive.c
+   gcc -c dive.c
+mul.o:mul.c
+   gcc -c mul.c
+main.o:main.c
+   gcc -c main.c
+
+#阶段三:已经不需要向里面输入文件名了
+src = $(wildcard *.c) # 找到当前目录下所有的.c文件
+obj = $(patsubst %.c,%.o,$(src)) # 把src中所有的.c后缀转换为.o后缀，并保存在obj中
+target = app
+$(target):$(obj)
+   gcc $^ -o $@
+
+# $@:表示目标
+# $^:表示所有依赖
+# $<:表示依赖中的第一个
+# 把所有的.c文件变异成.o文件
+%.o:%.c
+   gcc -c $< -o $@
+
+#阶段四
+
+CPPFLAGS= -Iinclude # 预处理标志，头文件在什么位置
+CFLAGS= -g -Wall # 编译的时候需不需要加调试信息-g、是否开启严格编译-Wall
+LDFLAGS= -L../lib -lmycalc # 加载时候的参数，共享库
+CC=gcc # 编译器是什么
+
+src = $(wildcard *.c)
+obj = $(patsubst %.c,%.o,$(src))
+target = app
+$(target):$(obj)
+   $(CC) $^ $(LDFLAGS) -o $@
+
+%.o:%.c
+   $(CC) -c $< $(CFLAGS) $(CPPFLAGS) -o $@
+
+# 彻底清除生成的过程文件和配置文件
+distclean:
+
+
+# 安装
+install:
+   cp app /usr/bin
+
+.PHONY:clean
+# 彻底清除生成的过程文件
+clean:
+   rm -f *.o
+   rm -f app
+```
+
+![Makefile](MD/assert/Linux系统编程/1-6-makefile.png)
+
+makefile的两个阶段
+
+1. 自上向下建立关系树
+2. 自下向上执行命令
+
+#### Makefile工作原理
+
+- 分析各个目标和依赖之间的关系
+- 根据依赖关系自底向上执行命令
+- 根据依赖的修改时间比目标的修改时间新，从而确定更新
+- 如果目标不依赖于任何条件，则执行对应命令，以示更新
+
+#### clean
+
+- 用途：清除编译生成的中间.o文件和最终目标文件
+- make clean如果当前目录下有同名clean文件，则不执行clean对应的命令
+- 伪目标声明：.PHONY:clean
+- clean命令中的特殊符号
+  - "-"此条命令出错，make也会继续执行后续的命令。如"-rm main.o"
+  - "@"不显示命令本身，只显示结果。如"@echo" clean done
+- 其他
+  - make默认执行第一个出现的目标，可通过make dest执行要执行的目标
+  - distclean目标
+  - install目标
+  - make -C 指定目录 进入指定目录
 
 ## 2. 系统编程
 
@@ -2288,39 +2441,2097 @@ srw-rw-rw- 1 root root 0 9月 15 18:18 rpcbind.sock
 
 #### 2.3.4. 进程间关系
 
+##### 终端
+
+```txt
+init-->fork-->exec-->getty-->用户输入帐号-->login-->输入密码-->exec-->shell
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;在UNIX系统中，用户通过终端登录系统后得到一个Shell进程，这个终端成为Shell进程的控制终端（Controlling Terminal）
+
+- 由进程可知，控制终端是保存在PCB中的信息，而我们知道fork会复制PCB中的信息，因此由Shell进程启动的其它进程的控制终端也是这个终端。
+  - 默认情况下（没有重定向），每个进程的标准输入、标准输出和标准错误输出都指向控制终端。
+    - 进程从标准输入读也就是读用户的键盘输入。
+    - 进程往标准输出或标准错误输出写也就是输出到显示器上。
+- 由信号可知，在控制终端输入一些特殊的控制键可以给前台进程发信号。
+  - 例如Ctrl-C表示SIGINT
+  - Ctrl-\表示SIGQUIT。
+- 文件与I/O，每个进程都可以通过一个特殊的设备文件/dev/tty访问它的控制终端。
+  - 每个终端设备都对应一个不同的设备文件，/dev/tty提供了一个通用的接口
+  - 一个进程要访问它的控制终端
+   1. 通过/dev/tty
+   2. 通过该终端设备所对应的设备文件
+  - ttyname函数可以由文件描述符查出对应的文件名，该文件描述符必须指向一个终端设备而不能是任意文件。
+
+```cpp
+// 看一下各种不同的终端所对应的设备文件名。
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+   printf("fd 0: %s\n", ttyname(0));
+   printf("fd 1: %s\n", ttyname(1));
+   printf("fd 2: %s\n", ttyname(2));
+   
+   return 0;
+}
+/*
+fattiger@ubuntu:~$ ./app
+fd 0: /dev/pts/1
+fd 1: /dev/pts/1
+fd 2: /dev/pts/1
+*/
+```
+
+![终端设备模块](MD/assert/Linux系统编程/2-3-4-终端设备模块.png)
+
+&nbsp;&nbsp;&nbsp;&nbsp;硬件驱动程序负责读写实际的硬件设备
+
+***例如***从键盘读入字符和把字符输出到显示器
+
+- 线路规程像一个过滤器，对于某些特殊字符并不是让它直接通过，而是做特殊处理
+  - 在键盘上按下Ctrl-Z，对应的字符并不会被用户程序的read读到，而是被线路规程截获，解释成SIGTSTP信号发给前台进程，通常会使该进程停止。
+- 线路规程应该过滤哪些字符和做哪些特殊处理是可以配置的。
+
+***网络终端***
+
+&nbsp;&nbsp;&nbsp;&nbsp;虚拟终端或串口终端的数目是有限的，虚拟终端(字符控制终端)一般就是/dev/tty1∼/dev/tty6六个，串口终端的数目也不超过串口的数目。然而网络终端或图形终端窗口的数目却是不受限制的，这是通过伪终端（Pseudo TTY）实现的。
+
+- 伪终端：由一个主设备（PTYMaster）和一个从设备（PTY Slave）组成。
+  - 主设备在概念上相当于键盘和显示器，只不过它不是真正的硬件而是一个内核模块，操作它的也不是用户而是另外一个进程。
+  - 从设备和上面介绍的/dev/tty1这样的终端设备模块类似，只不过它的底层驱动程序不是访问硬件而是访问主设备。
+- 网络终端或图形终端窗口的Shell进程以及它启动的其它进程都会认为自己的控制终端是伪终端从设备
+  - 例如/dev/pts/0、/dev/pts/1等。
+
+![网络终端](MD/assert/Linux系统编程/2-3-4-网络终端.png)
+以telnet为例说明网络登录和使用伪终端的过程。
+
+***缺点***对网络依赖大
+
+- 如果telnet客户端和服务器之间的网络延迟较大，我们会观察到按下一个键之后要过几秒钟才能回显到屏幕上。
+  - 这说明我们每按一个键telnet客户端都会立刻把该字符发送给服务器，然后这个字符经过伪终端主设备和从设备之后被Shell进程读取，同时回显到伪终端从设备，回显的字符再经过伪终端主设备、telnetd服务器和网络发回给telnet客户端，显示给用户看。
+- 每按一个键都要在网络上走个来回！
+
+##### 进程组
+
+一个或多个进程的集合,进程组ID是一个正整数，是组长进程的ID号，组长进程通常就是父进程，它的子进程就是它的组员进程。
+
+```cpp
+// 获取当前进程进程组ID
+pid_t getpgid(pid_t pid)
+pid_t getpgrp(void)
+```
+
+***例：***获得父子进程进程组
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(void)
+{
+   pid_t pid;
+
+   if ((pid = fork()) < 0) {
+      perror("fork");
+      exit(1);
+   }else if (pid == 0) {
+      printf("child process PID is %d\n",getpid());
+      printf("Group ID is %d\n",getpgrp());
+      printf("Group ID is %d\n",getpgid(0));
+      printf("Group ID is %d\n",getpgid(getpid()));
+      exit(0);
+   }
+   sleep(3);
+   printf("parent process PID is %d\n",getpid());
+   printf("Group ID is %d\n",getpgrp());
+   
+   return 0;
+}
+```
+
+- 组长进程可以创建一个进程组，创建该进程组中的进程，然后终止,只要进程组中有一个进程存在，进程组就存在，与组长进程是否终止无关
+- 进程组生存期:进程组创建到最后一个进程离开(终止或转移到另一个进程组)
+
+一个进程可以为自己或子进程设置进程组ID
+
+```cpp
+int setpgid(pid_t pid, pid_t pgid)
+
+// 如改变子进程为新的组，应在fork后，exec前使用
+// 非root进程只能改变自己创建的子进程，或有权限操作的进程
+```
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(void)
+{
+   pid_t pid;
+   
+   if ((pid = fork()) < 0) {
+      perror("fork");
+      exit(1);
+   } else if (pid == 0) {
+      printf("child process PID is %d\n",getpid());
+      printf("Group ID of child is %d\n",getpgid(0)); // 返回组id
+      sleep(5);
+      printf("Group ID of child is changed to %d\n",getpgid(0));
+      exit(0);
+   }
+   
+   sleep(1);
+   setpgid(pid,pid); // 父进程改变子进程的组id为子进程本身
+   sleep(5);
+   printf("parent process PID is %d\n",getpid());
+   printf("parent of parent process PID is %d\n",getppid());
+   printf("Group ID of parent is %d\n",getpgid(0));
+   setpgid(getpid(),getppid()); // 改变父进程的组id为父进程的父进程
+   printf("Group ID of parent is changed to %d\n",getpgid(0));
+   
+   return 0;
+}
+```
+
+##### 会话
+
+```cpp
+// 设置会话
+pid_t setsid(void)
+```
+
+***注意***
+
+1. 调用进程不能是进程组组长,该进程变成新会话首进程(session header)
+2. 该进程成为一个新进程组的组长进程。
+3. 需有root权限(ubuntu不需要)
+4. 新会话丢弃原有的控制终端,该会话没有控制终端
+5. 该调用进程是组长进程，则出错返回
+6. 建立新会话时，先调用fork, 父进程终止，子进程调用
+
+```cpp
+// 获得进程属于的会话
+pid_t getsid(pid_t pid)
+/*
+pid为0表示察看当前进程session ID
+ps ajx命令查看系统中的进程。参数a表示不仅列当前用户的进程，也列出所有其他用户的进程，参数x表示不仅列有控制终端的进程，也列出所有无控制终端的进程，参数j表示列出与作业控制相关的信息。
+组长进程不能成为新会话首进程，新会话首进程必定会成为组长进程。
+*/
+```
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(void)
+{
+   pid_t pid;
+
+   if ((pid = fork())<0) {
+      perror("fork");
+      exit(1);
+   } else if (pid == 0) {
+      printf("child process PID is %d\n", getpid());
+      printf("Group ID of child is %d\n", getpgid(0));
+      printf("Session ID of child is %d\n", getsid(0));
+      sleep(10);
+      setsid(); // 子进程非组长进程，故其成为新会话首进程，且成为组长进程。该进程组id即为会话进程
+      printf("Changed:\n");
+      printf("child process PID is %d\n", getpid());
+      printf("Group ID of child is %d\n", getpgid(0));
+      printf("Session ID of child is %d\n", getsid(0));
+      sleep(20);
+      exit(0);
+   }
+
+   return 0;
+}
+```
+
+#### 2.3.5. 守护进程
+
+**守护进程** Daemon(精灵)进程,是Linux中的后台服务进程,生存期较长的进程(通常是从开机到关机)，通常独立于控制终端并且周期性地执行某种任务或等待处理某些发生的事件。
+
+***守护进程编程步骤***
+
+```txt
+1. 创建子进程，父进程退出
+   所有工作在子进程中进行
+   形式上脱离了控制终端
+2. 在子进程中创建新会话
+　　setsid()函数
+　　使子进程完全独立出来，脱离控制
+3. 改变当前目录为根目录
+　　chdir()函数
+　　防止占用可卸载的文件系统
+　　也可以换成其它路径
+4. 重设文件权限掩码
+　　umask()函数
+　　防止继承的文件创建屏蔽字拒绝某些权限
+　　增加守护进程灵活性
+5. 关闭文件描述符
+　　继承的打开文件不会用到，浪费系统资源，无法卸载
+6. 开始执行守护进程核心工作
+7. 守护进程退出处理
+```
+
+```cpp
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+
+void daemonize(void)
+{
+   pid_t pid;
+   /*
+   * 成为一个新会话的首进程，失去控制终端
+   */
+   if ((pid = fork()) < 0) { // 创建子进程，退出父进程
+      perror("fork");
+      exit(1);
+   } else if (pid != 0) /* parent */
+      exit(0);
+   setsid(); // 子进程成为新的会话，脱离原有会话的关系
+   /*
+   * 改变当前工作目录到/目录下.
+   */
+   if (chdir("/") < 0) {
+      perror("chdir");
+      exit(1);
+   }
+   /* 设置umask为0 */
+   umask(0);
+   /*
+   * 重定向0，1，2文件描述符到 /dev/null，因为已经失去控制终端，再操作0，1，2没有意义.
+   */
+   close(0); // 先关闭0
+   open("/dev/null", O_RDWR); // 再重新打开一个文件，文件描述符为0
+   dup2(0, 1); // 把0的文件描述符复制给1和2，现在它们三个都指向/dev/null
+   dup2(0, 2);
+}
+
+int main(void)
+{
+   daemonize(); // 创建守护进程
+   while(1); /* 在此循环中可以实现守护进程的核心工作 */
+}
+```
+
 ### 2.4. 信号
+
+#### 2.4.1. 信号概念
+
+***查看信号***
+
+```bash
+fattager@ubuntu:~$ kill -l
+1) SIGHUP 2) SIGINT 3) SIGQUIT 4) SIGILL 5) SIGTRAP
+2) SIGABRT 7) SIGBUS 8) SIGFPE 9) SIGKILL 10) SIGUSR1
+3)  SIGSEGV 12) SIGUSR2 13) SIGPIPE 14) SIGALRM 15) SIGTERM
+4)  SIGSTKFLT 17) SIGCHLD 18) SIGCONT 19) SIGSTOP 20) SIGTSTP
+5)  SIGTTIN 22) SIGTTOU 23) SIGURG 24) SIGXCPU 25) SIGXFSZ
+6)  SIGVTALRM 27) SIGPROF 28) SIGWINCH 29) SIGIO 30) SIGPWR
+7)  SIGSYS 34) SIGRTMIN 35) SIGRTMIN+1 36) SIGRTMIN+2 37) SIGRTMIN+3
+8)  SIGRTMIN+4 39) SIGRTMIN+5 40) SIGRTMIN+6 41) SIGRTMIN+7 42) SIGRTMIN+8
+9)  SIGRTMIN+9 44) SIGRTMIN+10 45) SIGRTMIN+11 46) SIGRTMIN+12 47) SIGRTMIN
++13
+48) SIGRTMIN+14 49) SIGRTMIN+15 50) SIGRTMAX-14 51) SIGRTMAX-13 52) SIGRTMAX-12
+53) SIGRTMAX-11 54) SIGRTMAX-10 55) SIGRTMAX-9 56) SIGRTMAX-8 57) SIGRTMAX-7
+58) SIGRTMAX-6 59) SIGRTMAX-5 60) SIGRTMAX-4 61) SIGRTMAX-3 62) SIGRTMAX-2
+63) SIGRTMAX-1 64) SIGRTMAX
+```
+
+***信号机制***
+
+查看信号机制:man 7 signal
+
+```txt
+Term: Default action is to terminate the process.表示终止当前进程
+Ign: Default action is to ignore the signal.表示忽略该信号
+Core: Default action is to terminate the process and dump core (see core(5)).表示终止当前进程并且Core Dump(Core Dump用于gdb调试)
+Stop: Default action is to stop the process.表示停止当前进程
+Cont: Default action is to continue the process if it is currently stopped.表示继续执行之前停止的进程
+```
+
+***First the signals described in the original POSIX.1-1990 standard.***
+
+| Signal(信号宏定义名称) | Value(信号编号) | Action(默认处理动作) | Comment(简要介绍信号产生的条件) |
+|--|--|--|--|
+| SIGHUP | 1 | Term | Hangup detected on controlling terminal or death of controlling process |
+| SIGINT | 2 | Term | Interrupt from keyboard |
+| SIGQUIT | 3 | Core | Quit from keyboard |
+| SIGILL | 4 | Core | Illegal Instruction |
+| SIGABRT | 6 | Core | Abort signal from abort(3) |
+| SIGFPE | 8 | Core | Floating point exception |
+| SIGKILL | 9 | Term | Kill signal |
+| SIGSEGV | 11 | Core | Invalid memory reference |
+| SIGPIPE | 13 | Term | Broken pipe: write to pipe with no readers |
+| SIGALRM | 14 | Term | Timer signal from alarm(2) |
+| SIGTERM | 15 | Term | Termination signal |
+| SIGUSR1 | 30,10,16 | Term | User-defined signal 1 |
+| SIGUSR2 | 31,12,17 | Term | User-defined signal 2 |
+| SIGCHLD | 20,17,18 | Ign | Child stopped or terminated |
+| SIGCONT | 19,18,25 | Cont | Continue if stopped |
+| SIGSTOP | 17,19,23 | Stop | Stop process |
+| SIGTSTP | 18,20,24 | Stop | Stop typed at tty |
+| SIGTTIN | 21,21,26 | Stop | tty input for background process |
+| SIGTTOU | 22,22,27 | Stop | tty output for background process |
+
+The signals SIGKILL and SIGSTOP cannot be caught, blocked, or ignored.
+
+***信号产生种类***
+
+- 在终端下
+  - ctrl+c:SIGINT
+  - ctrl+z:SIGTSTP
+  - ctrl+\:SIGQUIT
+- 硬件异常
+  - 除0操作
+  - 访问非法内存
+- kill函数或kill命令
+  - 不过，kill向调用者返回测试结果时，原来存在的被测试进程可能刚终止
+- 某种软件条件已发生
+  - 定时器alarm到时,每个进程只有一个定时器
+
+```cpp
+int kill(pid_t pid, int sig)
+   pid > 0
+      // sig发送给ID为pid的进程
+   pid == 0
+      // sig发送给与发送进程同组的所有进程
+   pid < 0
+      // sig发送给组ID为|-pid|的进程，并且发送进程具有向其发送信号的权限
+   pid == -1
+      // sig发送给发送进程有权限向他们发送信号的系统上的所有进程
+
+// sig为0时，用于检测，特定为pid进程是否存在，如不存在，返回-1。
+
+int raise(int sig) // 向自己发信号
+void abort(void) // 向自己发送一个SIGABRT(6号)信号，就是一个终止信号
+
+/*-----------------------------------------------------------------*/
+unsigned int alarm(unsigned int seconds) // 定时器，定时n秒
+
+// 管道读端关闭，写端写数据
+#include <unistd.h>
+#include <stdio.h>
+
+int main(void)
+{
+   int counter;
+   alarm(1); // 这里不同于sleep(1); sleep是在这里停止1秒，alarm是在这里开始计时，然后继续后面的操作
+   for(counter=0; 1; counter++)
+      printf("counter=%d ", counter);
+
+   return 0;
+}
+```
+
+***信号产生的原因***
+
+```txt
+1) SIGHUP:当用户退出shell时，由该shell启动的所有进程将收到这个信号，默认动作为终止进程
+2）SIGINT：当用户按下了<Ctrl+C>组合键时，用户终端向正在运行中的由该终端启动的程序发出此信号。默认动作为终止里程。
+3）SIGQUIT：当用户按下<ctrl+\>组合键时产生该信号，用户终端向正在运行中的由该终端启动的程序发出些信号。默认动作为终止进程。
+4）SIGILL：CPU检测到某进程执行了非法指令。默认动作为终止进程并产生core文件
+5）SIGTRAP：该信号由断点指令或其他 trap指令产生。默认动作为终止里程 并产生core文件。
+6 ) SIGABRT:调用abort函数时产生该信号。默认动作为终止进程并产生core文件。
+7）SIGBUS：非法访问内存地址，包括内存对齐出错，默认动作为终止进程并产生core文件。
+8）SIGFPE：在发生致命的运算错误时发出。不仅包括浮点运算错误，还包括溢出及除数为0等所有的算法错误。默认动作为终止进程并产生core文件。
+9）SIGKILL：无条件终止进程。本信号不能被忽略，处理和阻塞。默认动作为终止进程。它向系统管理员提供了可以杀死任何进程的方法。
+10）SIGUSE1：用户定义 的信号。即程序员可以在程序中定义并使用该信号。默认动作为终止进程。
+11）SIGSEGV：指示进程进行了无效内存访问。默认动作为终止进程并产生core文件。
+12）SIGUSR2：这是另外一个用户自定义信号 ，程序员可以在程序中定义 并使用该信号。默认动作为终止进程。1
+13）SIGPIPE：Broken pipe向一个没有读端的管道写数据。默认动作为终止进程。
+14) SIGALRM:定时器超时，超时的时间 由系统调用alarm设置。默认动作为终止进程。
+15）SIGTERM：程序结束信号，与SIGKILL不同的是，该信号可以被阻塞和终止。通常用来要示程序正常退出。执行shell命令Kill时，缺省产生这个信号。默认动作为终止进程。
+16）SIGCHLD：子进程结束时，父进程会收到这个信号。默认动作为忽略这个信号。
+17）SIGCONT：停止进程的执行。信号不能被忽略，处理和阻塞。默认动作为终止进程。
+18）SIGTTIN：后台进程读终端控制台。默认动作为暂停进程。
+19）SIGTSTP：停止进程的运行。按下<ctrl+z>组合键时发出这个信号。默认动作为暂停进程。
+21）SIGTTOU:该信号类似于SIGTTIN，在后台进程要向终端输出数据时发生。默认动作为暂停进程。
+22）SIGURG：套接字上有紧急数据时，向当前正在运行的进程发出些信号，报告有紧急数据到达。如网络带外数据到达，默认动作为忽略该信号。
+23）SIGXFSZ：进程执行时间超过了分配给该进程的CPU时间 ，系统产生该信号并发送给该进程。默认动作为终止进程。
+24）SIGXFSZ：超过文件的最大长度设置。默认动作为终止进程。
+25）SIGVTALRM：虚拟时钟超时时产生该信号。类似于SIGALRM，但是该信号只计算该进程占用CPU的使用时间。默认动作为终止进程。
+26）SGIPROF：类似于SIGVTALRM，它不公包括该进程占用CPU时间还包括执行系统调用时间。默认动作为终止进程。
+27）SIGWINCH：窗口变化大小时发出。默认动作为忽略该信号。
+28）SIGIO：此信号向进程指示发出了一个异步IO事件。默认动作为忽略。
+29）SIGPWR：关机。默认动作为终止进程。
+30）SIGSYS：无效的系统调用。默认动作为终止进程并产生core文件。
+31）SIGRTMIN～（64）SIGRTMAX：LINUX的实时信号，它们没有固定的含义（可以由用户自定义）。所有的实时信号的默认动作都为终止进程。
+```
+
+#### 2.4.2. 进程处理信号行为
+
+- manpage里三种处理信号的方式：
+  - SIG_IGN
+  - SIG_DFL
+  - a signal handling function
+- 进程处理信号的行为
+  - 默认处理动作
+    - term
+    - core
+      - gcc -g file.c
+      - ulimit -c 1024
+      - gdb a.out core
+      - 进程死之前的内存情况，死后验尸
+    - ign
+    - stop
+    - cont
+  - 忽略
+  - 捕捉(用户自定义信号处理函数)
+
+#### 2.4.3. 信号集处理函数
+
+```cpp
+// sigset_t为信号集,可sizeof(sigset_t)察看
+// 它是设置一个信号集，先构造一个信号集，再把它注册到当前进程的信号端
+
+int sigemptyset(sigset_t *set) // 把信号集全部置0
+int sigfillset(sigset_t *set) // 把信号集全部置1
+int sigaddset(sigset_t *set, int signo) // 把信号集某一位置1
+int sigdelset(sigset_t *set, int signo) // 把信号集某一位置0
+int sigismember(const sigset_t *set, int signo) // 判断信号集的某个信号是否置1
+```
+
+#### 2.4.4. PCB的信号集
+
+![信号集](MD/assert/Linux系统编程/2-4-4-信号集.png)
+
+- 常规信号在递达之前产生多次只计一次，而实时信号在递达之前产生多次可以依次放在一个队列里。
+- 每个信号只有一个bit的未决标志，非0即1，不记录该信号产生了多少次，阻塞标志也是这样表示的。
+- 未决和阻塞标志可以用相同的数据类型sigset_t来存储，sigset_t称为信号集，这个类型可以表示每个信号的“有效”或“无效”状态。
+  - 在阻塞信号集中“有效”和“无效”的含义是该信号是否被阻塞。
+  - 在未决信号集中“有效”和“无效”的含义是该信号是否处于未决状态。
+- 阻塞信号集也叫做当前进程的信号屏蔽字（Signal Mask）
+
+***sigprocmask***
+
+它负责注册，可以读取或更改进程的信号屏蔽字。
+
+```cpp
+#include <signal.h>
+
+int sigprocmask(int how, const sigset_t *set, sigset_t *oset);
+// 返回值：若成功则为0，若出错则为-1
+/* how参数
+SIG_BLOCK: set包含了我们希望添加到当前信号屏蔽字的信号，相当于mask=mask|set
+SIG_UNBLOCK: set包含了我们希望从当前信号屏蔽字中解除阻塞的信号，相当于mask=mask&~set
+SIG_SETMASK: 设置当前信号屏蔽字为set所指向的值，相当于mask=set
+*/
+// 如果set是非空指针，则更改进程的信号屏蔽字
+// 如果set和oset都是非空，则将原来的信号屏蔽字备份到oset中
+// 读取进程的当前信号屏蔽字通过oset参数传出
+```
+
+如果调用sigprocmask解除了对当前若干个未决信号的阻塞，则在sigprocmask返回前，至少将其中一个信号递达。
+
+***sigpending***
+
+读取当前进程的未决信号集，通过set参数传出
+
+```cpp
+#include <signal.h>
+
+int sigpending(sigset_t *set);
+// 成功返回0，出错返回-1
+```
+
+***示例代码***
+
+```cpp
+#include <signal.h>
+#include <stdio.h>
+
+void printsigset(const sigset_t *set)
+{
+   int i;
+   for (i = 1; i < 32; i++)
+      if (sigismember(set, i) == 1)
+         putchar('1');
+      else
+         putchar('0');
+   puts("");
+}
+
+int main(void)
+{
+   sigset_t s, p;
+   sigemptyset(&s);
+   sigaddset(&s, SIGINT);
+   sigprocmask(SIG_BLOCK, &s, NULL);
+   
+   while (1) {
+      sigpending(&p);
+      printsigset(&p);
+      sleep(1);
+   }
+   
+   return 0;
+}
+/*
+程序运行时，每秒钟把各信号的未决状态打印一遍，由于我们阻塞了SIGINT信号，按Ctrl-C将会使SIGINT信号处于
+未决状态，按Ctrl-\仍然可以终止程序，因为SIGQUIT信号没有阻塞。
+fattiger@ubuntu:~$ ./a.out
+0000000000000000000000000000000
+0000000000000000000000000000000（这时按Ctrl-C）
+0100000000000000000000000000000
+0100000000000000000000000000000（这时按Ctrl-\）
+Quit (core dumped)
+*/
+```
+
+#### 2.4.5. 信号捕捉设定
+
+![信号捕捉](MD/assert/Linux系统编程/2-4-5-信号捕捉.png)
+
+```cpp
+#include <signal.h>
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+// 检查或修改与指定信号相关联的处理动作
+// signum参数指出要捕获的信号类型，
+// act参数指定新的信号处理方式，
+// oldact参数输出先前信号的处理方式
+
+
+// struct sigaction 定义:
+
+struct sigaction {
+   void (*sa_handler)(int);
+   void (*sa_sigaction)(int, siginfo_t *, void *);
+   sigset_t sa_mask;
+   int sa_flags;
+   void (*sa_restorer)(void);
+};
+
+/*
+sa_handler : 早期的捕捉函数
+sa_sigaction : 新添加的捕捉函数，可以传参,和sa_handler互斥，两者通过sa_flags选择采用哪种捕捉函数
+sa_mask : 在执行捕捉函数时，设置阻塞其它信号，sa_mask | 进程阻塞信号集，退出捕捉函数后，还原回原有的阻塞信号集
+sa_flags : SA_SIGINFO 或者 0
+sa_restorer : 保留，已过时
+*/
+```
+
+可以利用SIGUSR1和SIGUSR2实现父子进程同步输出
+
+- 子进程继承了父进程的信号屏蔽字和信号处理动作
+
+#### 2.4.6. C标准库信号处理函数
+
+```cpp
+typedef void (*sighandler_t)(int)
+sighandler_t signal(int signum, sighandler_t handler) // 简单的sigaction，但是可以跨平台，需要跨平台的时候使用它，不需要的时候还是使用sigaction比较好
+
+int system(const char *command) // 加载一条命令去执行
+// 集合fork，exec，wait一体
+```
+
+#### 2.4.7. 可重入函数
+
+- 不含全局变量和静态变量是可重入函数的一个要素
+- 可重入函数见man 7 signal
+- 在信号捕捉函数里应使用可重入函数
+- 在信号捕捉函数里尽量不调用不可重入函数
+
+#### 2.4.8. 信号引起的竟态和异步I/O
+
+***时序竟态***
+
+```cpp
+int pause(void)
+// 使调用进程挂起，直到有信号递达，如果递达信号是忽略，则继续挂起
+
+int sigsuspend(const sigset_t *mask)
+/*
+1.以通过指定mask来临时解除对某个信号的屏蔽，
+2.然后挂起等待,
+3.当被信号唤醒sigsuspend返回时，进程的信号屏蔽字恢复为原来的值
+*/
+```
+
+```cpp
+// mysleep
+#include <unistd.h>
+#include <signal.h>
+#include <stdio.h>
+
+void sig_alrm(int signo)
+{
+/* nothing to do */
+}
+
+unsigned int mysleep(unsigned int nsecs)
+{
+   struct sigaction newact, oldact;
+   unsigned int unslept;
+   
+   newact.sa_handler = sig_alrm;
+   sigemptyset(&newact.sa_mask);
+   newact.sa_flags = 0;
+   sigaction(SIGALRM, &newact, &oldact);
+   alarm(nsecs);
+   pause();
+   unslept = alarm(0);
+   sigaction(SIGALRM, &oldact, NULL);
+   
+   return unslept;
+}
+
+int main(void)
+{
+   while(1){
+      mysleep(2);
+      printf("Two seconds passed\n");
+   }
+
+   return 0;
+}
+```
+
+```cpp
+// mysleep改进
+unsigned int mysleep(unsigned int nsecs)
+{
+   struct sigaction newact, oldact;
+   sigset_t newmask, oldmask, suspmask;
+   unsigned int unslept;
+   
+   /* set our handler, save previous information */
+   newact.sa_handler = sig_alrm;
+   sigemptyset(&newact.sa_mask);
+   newact.sa_flags = 0;
+   sigaction(SIGALRM, &newact, &oldact);
+
+   /* block SIGALRM and save current signal mask */
+   sigemptyset(&newmask);
+   sigaddset(&newmask, SIGALRM);
+   sigprocmask(SIG_BLOCK, &newmask, &oldmask);
+   alarm(nsecs);
+   suspmask = oldmask;
+   sigdelset(&suspmask, SIGALRM); /* make sure SIGALRM isn't blocked */
+   sigsuspend(&suspmask); /* wait for any signal to be caught */
+   /* some signal has been caught, SIGALRM is now blocked */
+   unslept = alarm(0);
+   sigaction(SIGALRM, &oldact, NULL); /* reset previous action */
+   /* reset signal mask, which unblocks SIGALRM */
+   sigprocmask(SIG_SETMASK, &oldmask, NULL);
+   
+   return(unslept);
+}
+```
+
+***全局变量异步IO***
+
+```cpp
+sig_atomic_t
+// 平台下的原子类型,就是32位系统大小就是32，64位系统就是64
+volatile
+// 防止编译器开启优化选项时，优化对内存的读写，就是C的一个关键字
+```
+
+#### 2.4.9. SIGCHLD信号处理
+
+***SIGCHLD信号的产生条件***
+
+- 子进程终止时
+- 子进程接收到SIGSTOP信号停止时
+- 子进程处于停止态，接受到SIGCONT后唤醒时
+
+***status处理方式***
+
+```cpp
+pid_t waitpid(pid_t pid, int *status, int options)
+
+options
+   WNOHANG
+      没有子进程结束，立即返回
+   WUNTRACED
+      如果子进程由于被停止产生的SIGCHLD， waitpid则立即返回
+   WCONTINUED
+      如果子进程由于被SIGCONT唤醒而产生的SIGCHLD， waitpid则立即返回
+
+获取status
+   WIFEXITED(status)
+      子进程正常exit终止，返回真
+         WEXITSTATUS(status)返回子进程正常退出值
+   WIFSIGNALED(status)
+      子进程被信号终止，返回真
+         WTERMSIG(status)返回终止子进程的信号值
+   WIFSTOPPED(status)
+      子进程被停止，返回真
+         WSTOPSIG(status)返回停止子进程的信号值
+   WIFCONTINUED(status)
+      子进程由停止态转为就绪态，返回真
+```
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+void sys_err(char *str)
+{
+   perror(str);
+   exit(1);
+}
+
+void do_sig_child(int signo)
+{
+   int status;
+   pid_t pid;
+   while ((pid = waitpid(0, &status, WNOHANG)) > 0) {
+      if (WIFEXITED(status))
+         printf("child %d exit %d\n", pid, WEXITSTATUS(status));
+      else if (WIFSIGNALED(status))
+         printf("child %d cancel signal %d\n", pid, WTERMSIG(status));
+   }
+}
+
+int main(void)
+{
+   pid_t pid;
+   int i;
+   //阻塞SIGCHLD
+   for (i = 0; i < 10; i++) {
+      if ((pid = fork()) == 0)
+         break;
+      else if (pid < 0)
+         sys_err("fork");
+   }
+
+   if (pid == 0) {
+      int n = 18;
+      while (n--) {
+         printf("child ID %d\n", getpid());
+         sleep(1);
+      }
+      return i;
+   }
+   else if (pid > 0) {
+      //先设置捕捉
+      //再解除对SIGCHLD的阻塞
+      struct sigaction act;
+      act.sa_handler = do_sig_child;
+      sigemptyset(&act.sa_mask);
+      act.sa_flags = 0;
+      sigaction(SIGCHLD, &act, NULL);
+      
+      while (1) {
+         printf("Parent ID %d\n", getpid());
+         sleep(1);
+      }
+   }
+
+   return 0;
+}
+```
+
+#### 2.4.10. 向信号捕捉函数传参
+
+***sigqueue***
+
+```cpp
+int sigqueue(pid_t pid, int sig, const union sigval value)
+
+union sigval {
+   int sival_int;
+   void *sival_ptr;
+};
+```
+
+***sigaction***
+
+```cpp
+void (*sa_sigaction)(int, siginfo_t *, void *)
+
+siginfo_t {
+   int si_int; /* POSIX.1b signal */
+   void *si_ptr; /* POSIX.1b signal */
+   sigval_t si_value; /* Signal value */
+   ...
+}
+
+sa_flags = SA_SIGINFO
+```
+
+- 进程自己收发信号，在同一地址空间
+- 不同进程间收发信号，不在同一地址空间,不适合传地址
+
+#### 2.4.11. 信号中断系统调用
+
+read阻塞时，信号中断系统调用:
+
+解决方法：
+
+1. 返回部分读到的数据
+2. read调用失败，errno设成EINTER
 
 ### 2.5. 线程
 
-#### 2.5.1. 线程控制原语
+#### 2.5.1. 线程概念
 
-#### 2.5.2. 线程同步机制
+1. 轻量级进程(light-weight process)，也有PCB,创建线程使用的底层函数和进程一样，都是clone
+2. 从内核里看进程和线程是一样的，都有各自不同的PCB，但是PCB中指向内存资源的三级页表是相同的
+3. 进程可以蜕变成线程
+4. 线程可以理解成寄存器和栈
+5. 在linux下，线程最是小的执行单位；进程是最小的分配资源单位
 
-### 2.6. 网络编程
+察看LWP(线程)号
 
-#### 2.6.1. socket套接字
+``` txt
+ps -Lf pid
+ps -eLf
+// 可以查看到一个进程可能是由多个线程组成的
+```
 
-#### 2.6.2. TCP/IP/UDP
+![调度](MD/assert/Linux系统编程/2-5-1-调度单位.png)
 
-#### 2.6.3. 并发服务器开发
+- P:表示进程
+- LWP:表示线程
+- 从这张图可以看出，资源的分配单位是进程，CPU调度的单位是线程
 
-##### 2.6.3.1. 多进程并发
+***线程间共享的资源***
 
-##### 2.6.3.2. 多线程并发
+1. 文件描述符表
+2. 每种信号的处理方式
+3. 当前工作目录
+4. 用户ID和组ID
+5. 内存地址空间
 
-##### 2.6.3.3. 异步I/O
+```txt
+Text
+data
+bss
+堆
+共享库
+```
 
-###### 2.6.3.3.1. epoll
+![线程间共享资源](MD/assert/Linux系统编程/2-5-1-线程间共享资源.png)
 
-###### 2.6.3.3.2. select
+***线程间非共享资源***
 
-###### 2.6.3.3.3. poll
+1. 线程id
+2. 处理器现场和栈指针(内核栈)
+3. 独立的栈空间(用户空间栈)
+4. errno变量
+5. 信号屏蔽字
+6. 调度优先级
 
-## 3. shell编程
+***线程优缺点***
 
-### 3.1. 正则表达式
+```txt
+优点
+   提高程序的并发性
+   开销小，不用重新分配内存
+   通信和共享数据方便
+缺点
+   线程不稳定（库函数实现）
+   线程调试比较困难（gdb支持不好）
+   线程无法使用unix经典事件，例如信号
+```
 
-### 3.2. 错误处理机制
+***pthread manpage***
+
+```txt
+查看manpage关于pthread的函数
+man -k pthread
+
+安装pthread相关manpage
+sudo apt-get install manpages-posix manpages-posix-dev
+```
+
+#### 2.5.2. 线程原语
+
+***pthread_create***
+
+创建一个线程
+
+```cpp
+#include <pthread.h>
+
+int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
+/* 参数
+pthread_t *thread:传递一个pthread_t(线程id)变量地址进来，用于保存新线程的tid（线程ID）
+   typedef unsigned long int pthread_t;
+const pthread_attr_t *attr:线程属性设置，如使用默认属性，则传NULL
+void *(*start_routine) (void *):函数指针，指向新线程应该加载执行的函数模块
+void *arg:指定线程将要加载调用的那个函数的参数
+*/
+/*
+返回值:成功返回0，失败返回错误号。
+   以前学过的系统函数都是成功返回0，失败返回-1，而错误号保存在全局变量errno中，而pthread库的函数都是通过返回值返回错误号，虽然每个线程也都有一个errno，但这是为了兼容其它函数接口而提供的，pthread库本身并不使用它，通过返回值返回错误码更加清晰。
+*/
+// 编译的时候需要链接(Compile and link with) -lpthread.
+```
+
+线程通过调用pthread_create()创建新线程。此时：
+
+- 当前线程从pthread_create()返回继续执行。
+- 新线程由pthread_create的函数指针start_routine决定后面执行的内容。
+  - start_routine函数接收一个类型为void *的参数，是通过pthread_create的arg参数传递给它的。
+  - start_routine的返回值类型也是void *
+  - start_routine返回时，这个线程就退出了,其它线程可以调用pthread_join得到start_routine的返回值.
+
+pthread_create成功返回后，新创建的线程的id被填写到thread参数所指向的内存单元。
+
+- 线程id的类型是thread_t，它只在当前进程中保证是唯一的，在不同的系统中thread_t这个类型有不同的实现，它可能是一个整数值，也可能是一个结构体，也可能是一个地址，所以不能简单地当成整数用printf打印，调用pthread_self(3)可以获得当前线程的id。
+
+***pthread_self***
+
+获取调用线程tid
+
+```cpp
+#include <pthread.h>
+
+pthread_t pthread_self(void);
+```
+
+例子
+
+```cpp
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+pthread_t ntid;
+
+void printids(const char *s)
+{
+   pid_t pid;
+   pthread_t tid;
+   pid = getpid();
+   tid = pthread_self();
+   printf("%s pid %u tid %u (0x%x)\n", s, (unsigned int)pid, (unsigned int)tid, (unsigned int)tid);
+}
+
+void *thr_fn(void *arg)
+{
+   printids(arg);
+   return NULL;
+}
+
+int main(void)
+{
+   int err;
+   err = pthread_create(&ntid, NULL, thr_fn, "new thread: ");
+   if (err != 0) {
+      fprintf(stderr, "can't create thread: %s\n", strerror(err));
+      // 由于pthread_create的错误码不保存在errno中，因此不能直接用perror(3)打印错误信息，可以先用strerror(3)把错误码转换成错误信息再打印。
+      exit(1);
+   }
+   printids("main thread:");
+   sleep(1);
+   // 任意一个线程调用了exit或_exit，则整个进程的所有线程都终止，由于从main函数return也相当于调用exit，为了防止新创建的线程还没有得到执行就终止，我们在main函数return之前延时1秒，这只是一种权宜之计。
+   return 0;
+}
+```
+
+exit：关闭C标准文件流，刷新缓冲区
+
+_exit：Linux底层函数，导致进程退出，关闭未关闭的文件描述符
+
+***pthread_exit***
+
+调用线程退出函数，注意和exit函数的区别，任何线程里exit会导致进程退出，其他线程未工作结束，主控线程退出时不能return或exit。
+
+需要注意，pthread_exit或者return返回的指针所指向的内存单元必须是全局的或者是用malloc分配的，不能在线程函数的栈上分配，因为当其它线程得到这个返回指针时线程函数已经退出了。
+
+```cpp
+#include <pthread.h>
+void pthread_exit(void *retval);
+// void *retval:线程退出时传递出的参数，可以是退出值或地址，如是地址时，不能是线程内部申请的局部地址。
+```
+
+***pthread_join***
+
+等价于进程的wait
+
+```cpp
+#include <pthread.h>
+int pthread_join(pthread_t thread, void **retval);
+/*
+pthread_t thread:回收线程的tid
+void **retval:接收退出线程传递出的返回值
+返回值：成功返回0，失败返回错误号
+*/
+```
+
+调用该函数的线程将挂起等待，直到id为thread的线程终止。会释放线程资源(线程的PCB)
+
+thread线程以不同的方法终止，通过pthread_join得到的终止状态是不同的，总结如下：
+
+- 如果thread线程通过return返回，retval所指向的单元里存放的是thread线程函数的返回值。
+- 如果thread线程被别的线程调用pthread_cancel异常终止掉，retval所指向的单元里存放的是常数PTHREAD_CANCELED。
+- 如果thread线程是自己调用pthread_exit终止的，retval所指向的单元存放的是传给pthread_exit的参数。
+- 如果对thread线程的终止状态不感兴趣，可以传NULL给retval参数。
+
+***pthread_cancel***
+
+在一个进程内的线程可以互相取消
+
+```cpp
+#include <pthread.h>
+int pthread_cancel(pthread_t thread);
+
+// 被取消的线程，退出值，定义在Linux的pthread库中常数PTHREAD_CANCELED的值是-1。可以在头文件pthread.h中找到它的定义：
+#define PTHREAD_CANCELED ((void *) -1)
+```
+
+例子
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+void *thr_fn1(void *arg)
+{
+   printf("thread 1 returning\n");
+   return (void *)1;
+}
+
+void *thr_fn2(void *arg)
+{
+   printf("thread 2 exiting\n");
+   pthread_exit((void *)2);
+}
+
+void *thr_fn3(void *arg)
+{
+   while(1) {
+      printf("thread 3 writing\n");
+      sleep(1);
+   }
+}
+
+int main(void)
+{
+   pthread_t tid;
+   void *tret;
+   
+   pthread_create(&tid, NULL, thr_fn1, NULL);
+   pthread_join(tid, &tret);
+   printf("thread 1 exit code %d\n", (int)tret);
+   
+   pthread_create(&tid, NULL, thr_fn2, NULL);
+   pthread_join(tid, &tret);
+   printf("thread 2 exit code %d\n", (int)tret);
+   
+   pthread_create(&tid, NULL, thr_fn3, NULL);
+   sleep(3);
+   
+   pthread_cancel(tid);
+   pthread_join(tid, &tret);
+   printf("thread 3 exit code %d\n", (int)tret);
+   
+   return 0;
+}
+```
+
+***pthread_detach***
+
+将线程设为分离态线程，就是它运行结束由操作系统回收，不需要主控线程管理。
+
+```cpp
+#include <pthread.h>
+int pthread_detach(pthread_t tid);
+// pthread_t tid:分离线程tid
+// 返回值：成功返回0，失败返回错误号。
+```
+
+一般情况下，线程终止后，其终止状态一直保留到其它线程调用pthread_join获取它的状态为止。但是线程也可以被置为detach状态，这样的线程一旦终止就立刻回收它占用的所有资源(操作系统回收)，而不保留终止状态。
+
+- 不能对一个已经处于detach状态的线程调用pthread_join，这样的调用将返回EINVAL。
+- 如果已经对一个线程调用了pthread_detach就不能再调用pthread_join了。
+
+例子
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <string.h>
+
+void *thr_fn(void *arg)
+{
+   int n = 3;
+   
+   while (n--) {
+      printf("thread count %d\n", n);
+      sleep(1);
+   }
+   
+   return (void *)1;
+}
+
+int main(void)
+{
+   pthread_t tid;
+   void *tret;
+   int err;
+   
+   pthread_create(&tid, NULL, thr_fn, NULL);
+   //第一次运行时注释掉下面这行，第二次再打开，分析两次结果
+   pthread_detach(tid);
+
+   while (1) {
+      err = pthread_join(tid, &tret);
+      if (err != 0)
+         fprintf(stderr, "thread %s\n", strerror(err));
+      else
+         fprintf(stderr, "thread exit code %d\n", (int)tret);
+      sleep(1);
+   }
+   
+   return 0;
+}
+```
+
+***pthread_equal***
+
+比较两个线程是否相等
+
+```cpp
+#include <pthread.h>
+int pthread_equal(pthread_t t1, pthread_t t2);
+```
+
+#### 2.5.3. 线程终止方式
+
+如果需要只终止某个线程而不终止整个进程，可以有三种方法：
+
+1. 从线程主函数return。这种方法对主控线程不适用，从main函数return相当于调用exit。
+2. 一个线程可以调用pthread_cancel终止同一进程中的另一个线程。
+3. 线程可以调用pthread_exit终止自己。
+
+同一进程的线程间，pthread_cancel向另一线程发终止信号。系统并不会马上关闭被取消线程，只有在被取消线程下次系统调用时，才会真正结束线程。或调用**pthread_testcancel**，让内核去检测是否需要取消当前线程。
+
+#### 2.5.4. 线程属性
+
+之前讨论的线程都是采用线程的默认属性，默认属性已经可以解决绝大多数开发时遇到的问题。设置线程属性就是创建线程时的第二个参数。
+
+```cpp
+typedef struct
+{
+   int etachstate; //线程的分离状态
+   int schedpolicy; //线程调度策略
+   structsched_param schedparam; //线程的调度参数
+   int inheritsched; //线程的继承性
+   int scope; //线程的作用域
+   size_t guardsize; //线程栈末尾的警戒缓冲区大小
+   int stackaddr_set; //线程的栈设置
+   void* stackaddr; //线程栈的位置
+   size_t stacksize; //线程栈的大小
+}pthread_attr_t;
+
+注：目前线程属性在内核中不是直接这么定义的，这是早期的线程属性定义，两者之间定义的主要元素差别不大，目前的属性经过多次typedef，元素已经不堪入目。
+```
+
+属性值不能直接设置，须使用相关函数进行操作，初始化的函数为pthread_attr_init，这个函数必须在pthread_create函数之前调用。之后须用pthread_attr_destroy函数来释放资源。
+
+- 线程属性主要包括如下属性：
+  - 作用域（scope）
+  - 栈尺寸（stack size）
+  - 栈地址（stack address）
+  - 优先级（priority）
+  - 分离的状态（detached state）
+  - 调度策略
+  - 参数（scheduling policy and parameters）。
+- 默认的属性为非绑定、非分离、缺省M的堆栈、与父进程同样级别的优先级。
+
+***线程属性初始化***
+
+先初始化线程属性，再pthread_create创建线程。
+
+```cpp
+#include <pthread.h>
+
+int pthread_attr_init(pthread_attr_t *attr); //初始化线程属性
+int pthread_attr_destroy(pthread_attr_t *attr); //销毁线程属性所占用的资源
+```
+
+***线程的分离状态（detached state）***
+
+线程的分离状态决定一个线程以什么样的方式来终止自己。
+
+- 非分离状态:线程的默认属性是非分离状态，这种情况下，原有的线程等待创建的线程结束。只有当pthread_join()函数返回时，创建的线程才算终止，才能释放自己占用的系统资源。
+- 分离状态:分离线程没有被其他的线程所等待，自己运行结束了，线程也就终止了，马上释放系统资源。应该根据自己的需要，选择适当的分离状态。
+
+设置线程分离状态的函数：
+
+```cpp
+#include <pthread.h>
+int pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate); //设置线程属性，分离or非分离
+int pthread_attr_getdetachstate(pthread_attr_t *attr, int *detachstate); //获取程属性，分离or非分离
+
+// pthread_attr_t *attr:被已初始化的线程属性
+// int *detachstate:可选为PTHREAD_CREATE_DETACHED（分离线程）和 PTHREAD_CREATE_JOINABLE（非分离线程）
+```
+
+**注意**如果设置一个线程为分离线程，而这个线程运行又非常快，它很可能在pthread_create函数返回之前就终止了，它终止以后就可能将线程号和系统资源移交给其他的线程使用，这样调用pthread_create的线程就得到了错误的线程号。
+
+要避免这种情况可以采取一定的同步措施，最简单的方法之一是可以在被创建的线程里调用pthread_cond_timedwait函数，让这个线程等待一会儿，留出足够的时间让函数pthread_create返回。
+
+***线程的栈地址***
+
+POSIX.1定义了两个常量_POSIX_THREAD_ATTR_STACKADDR 和_POSIX_THREAD_ATTR_STACKSIZE检测系统是否支持栈属性。也可以给sysconf函数传递_SC_THREAD_ATTR_STACKADDR或_SC_THREAD_ATTR_STACKSIZE来进行检测。
+当进程**栈地址空间不够用**时，指定新建线程使用由malloc分配的空间作为自己的栈空间。通过pthread_attr_setstackaddr和pthread_attr_getstackaddr两个函数分别设置和获取线程的栈地址。传给pthread_attr_setstackaddr函数的地址是缓冲区的低地址（不一定是栈的开始地址，栈可能从高地址往低地址增长）。
+
+```cpp
+#include <pthread.h>
+int pthread_attr_setstackaddr(pthread_attr_t *attr, void *stackaddr);
+int pthread_attr_getstackaddr(pthread_attr_t *attr, void **stackaddr);
+// attr: 指向一个线程属性的指针
+// stackaddr: 返回获取的栈地址
+// 返回值：若是成功返回0,否则返回错误的编号
+// 说 明：函数已过时，一般用pthread_attr_getstack来代替
+```
+
+***线程的栈大小***
+
+当系统中有很多线程时，可能需要减小每个线程栈的默认大小，防止进程的地址空间不够用,当线程调用的函数会分配很大的局部变量或者函数调用层次很深时，可能需要增大线程栈的默认大小。
+
+函数pthread_attr_getstacksize和 pthread_attr_setstacksize提供设置。
+
+```cpp
+#include <pthread.h>
+int pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize);
+int pthread_attr_getstacksize(pthread_attr_t *attr, size_t *stacksize);
+// attr 指向一个线程属性的指针
+// stacksize 返回线程的堆栈大小
+// 返回值：若是成功返回0,否则返回错误的编号
+```
+
+获取和设置线程栈属性
+
+```cpp
+#include <pthread.h>
+int pthread_attr_setstack(pthread_attr_t *attr, void *stackaddr, size_t stacksize);
+int pthread_attr_getstack(pthread_attr_t *attr, void **stackaddr, size_t *stacksize);
+// attr 指向一个线程属性的指针
+// stackaddr 返回获取的栈地址
+// stacksize 返回获取的栈大小
+// 返回值：若是成功返回0,否则返回错误的编号
+```
+
+例子
+
+```cpp
+#include <stdio.h>
+#include <pthread.h>
+#include <string.h>
+#include <stdlib.h>
+#define SIZE 0x10000
+
+int print_ntimes(char *str)
+{
+   sleep(1);
+   printf("%s\n", str);
+
+   return 0;
+}
+
+void *th_fun(void *arg)
+{
+   int n = 3;
+   while (n--)
+      print_ntimes("hello xwp\n");
+}
+
+int main(void)
+{
+   pthread_t tid;
+   int err, detachstate, i = 1;
+   pthread_attr_t attr;
+   size_t stacksize;
+   void *stackaddr;
+
+   pthread_attr_init(&attr);
+   pthread_attr_getstack(&attr, &stackaddr, &stacksize);
+   printf("stackadd=%p\n", stackaddr);
+   printf("stacksize=%x\n", (int)stacksize);
+   pthread_attr_getdetachstate(&attr, &detachstate);
+
+   if (detachstate == PTHREAD_CREATE_DETACHED)
+      printf("thread detached\n");
+   else if (detachstate == PTHREAD_CREATE_JOINABLE)
+      printf("thread join\n");
+   else
+      printf("thread un known\n");
+
+   /* 设置线程分离属性 */
+   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+   while (1) {
+      /* 在堆上申请内存，指定线程栈的起始地址和大小 */
+      stackaddr = malloc(SIZE);
+      if (stackaddr == NULL) {
+         perror("malloc");
+         exit(1);
+      }
+
+      stacksize = SIZE;
+      pthread_attr_setstack(&attr, stackaddr, stacksize);
+      err = pthread_create(&tid, &attr, th_fun, NULL);
+
+      if (err != 0) {
+         printf("%s\n", strerror(err));
+         exit(1);
+      }
+      printf("%d\n", i++);
+   }
+
+   pthread_attr_destroy(&attr);
+
+   return 0;
+}
+```
+
+#### 2.5.5. NPTL
+
+1. 查看当前pthread库版本
+   - getconf GNU_LIBPTHREAD_VERSION
+2. NPTL实现机制(POSIX)，Native POSIX Thread Library
+3. 使用线程库时gcc指定 -lpthread
+
+#### 注意
+
+1. 为了主线程退出其他线程不退出，主线程应调用ptrhed_exit
+2. 避免僵线程
+   - join
+   - pthread_deatch
+   - pthread_create指定分离属性
+   - 被join线程可能在join函数返回前就释放完自己的所有内存资源，所以不应当返回被回收线程栈中的值;
+3. malloc和mmap申请的内存可以被其他线程释放
+4. 如果线程终止时没有释放加锁的互斥量，则该互斥量不能再被使用
+5. 应避免在多线程模型中调用fork，除非马上exec，子进程中只有调用fork的线程存在，其他线程在子进程中均pthread_exit
+6. 信号的复杂语义很难和多线程共存，应避免在多线程引入信号机制
+
+### 2.6. 线程同步
+
+#### 2.6.1. 同步概念
+
+***线程同步***
+
+协同步调，线程间按照预定的先后次序运行
+
+线程为什么要同步
+
+1. 共享资源，多个线程都对共享资源进行操作
+2. 线程操作共享资源的先后顺序不确定
+3. 处理器对存储器的操作一般不是原子操作
+
+![并行访问冲突](MD/assert/Linux系统编程/2-6-1-并行访问冲突.png)
+
+#### 2.6.2. 互斥量(互斥锁)
+
+```cpp
+// mutex操作原语
+pthread_mutex_t ：互斥量类型，只有两种取值：加锁：0 。解锁：1 。
+pthread_mutex_init ：初始化互斥量
+pthread_mutex_destroy ：销毁互斥量
+pthread_mutex_lock ：对互斥量加锁
+pthread_mutex_trylock ：尝试加锁，如果被人锁上了就返回，不阻塞
+pthread_mutex_unlock ：对互斥量解锁
+
+#include <pthread.h>
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+int pthread_mutex_destroy(pthread_mutex_t *mutex);
+int pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *restrict attr);
+/*
+restric关键字：只用于限制指针，告诉编译器，所有修改该指针指向内存中内容的操作，只能通过本指针完成。
+pthread_mutexattr_t：互斥量属性，一个传入参数，通常为NULL，选用默认属性(线程间共享)
+静态初始化：互斥锁定义在全局或static修饰：直接使用宏进行初始化
+动态初始化：局部变量采用动态初始化：pthread_mutex_init(&mutex, NULL)
+*/
+int pthread_mutex_lock(pthread_mutex_t *mutex); // 就是将mutex--，把mutex设置为0
+int pthread_mutex_trylock(pthread_mutex_t *mutex);
+int pthread_mutex_unlock(pthread_mutex_t *mutex); // 就是mutex++，把mutex设置为1
+```
+
+保证在某一时刻只有一个线程能访问数据的简便办法：
+
+- 在任意时刻只允许一个线程对共享资源进行访问。
+- 如果有多个线程试图同时访问临界区，那么 在有一个线程进入后其他所有试图访问此临界区的线程将被挂起，并一直持续到进入临界区的线程离开。
+  - 临界区在被释放后，其他线程可以继续抢占，并以此达到用原子方式操作共享资源的目的。
+
+临界区应该尽可能的小，临界区就是访问共享资源的那段代码区域(时间空间)(就是锁中间的那段代码涉及的时空操作)，这个区域应该越小越好。
+
+例子
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#define NLOOP 5000
+
+int counter; /* incremented by threads */
+pthread_mutex_t counter_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void *doit(void *);
+
+int main(int argc, char **argv)
+{
+   pthread_t tidA, tidB;
+   pthread_create(&tidA, NULL, doit, NULL);
+   pthread_create(&tidB, NULL, doit, NULL);
+   /* wait for both threads to terminate */
+   pthread_join(tidA, NULL);
+   pthread_join(tidB, NULL);
+   
+   return 0;
+}
+
+void *doit(void *vptr)
+{
+   int i, val;
+   for (i = 0; i < NLOOP; i++) {
+      pthread_mutex_lock(&counter_mutex);
+      val = counter;
+      printf("%x: %d\n", (unsigned int)pthread_self(), val + 1);
+      counter = val + 1;
+      pthread_mutex_unlock(&counter_mutex);
+   }
+
+   return NULL;
+}
+```
+
+#### 2.6.3. 死锁
+
+- 同一线程在拥有A锁的情况下再次请求获得A锁
+  - 加锁完立刻解锁，在加锁前进行检查
+- 线程1拥有A锁，请求B锁。线程2拥有B锁，请求A锁
+  - 使用trylock进行加锁，如果拿不到所有锁，放弃已经占有的锁
+- 震荡：循环等待
+
+#### 2.6.4. 读写锁
+
+***读共享，写独占，写锁优先级高***。读写锁是一把锁的两种加锁状态
+
+- 读模式下加锁状态(读锁)
+- 写模式下加锁状态(写锁)
+- 不加锁状态
+
+***特性***
+
+1. 读写锁是“写锁”状态时：解锁前，所有对该锁加锁的线程都会被阻塞
+2. 读写锁是“读锁”状态时：如果线程以读模式对其加锁会成功，如果线程以写模式加锁会阻塞
+3. 读写锁是“读锁”状态时：既有试图以写模式加锁的线程，也有试图以读模式加锁的线程，那么读写锁会阻塞随后的读模式锁请求，优先满足写模式锁
+
+读写锁适合对数据结构读的次数远大于写的情况
+
+```cpp
+#include <pthread.h>
+pthread_rwlock_t
+
+int pthread_rwlock_init(pthread_rwlock_t *restrict rwlock, const pthread_rwlockattr_t *restrict attr); // 初始化读写锁
+int pthread_rwlock_destroy(pthread_rwlock_t *restrict rwlock); // 销毁读写锁
+int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock); // 以读的方式加锁
+int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock); // 以写的方式加锁
+int pthread_rwlock_tryrdlock(pthread_rwlock_t *rwlock);
+int pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock);
+int pthread_rwlock_unlock(pthread_rwlock_t *rwlock); // 解锁
+成功返回0，失败返回错误号
+```
+
+例子
+
+```cpp
+#include <stdio.h>
+#include <pthread.h>
+
+int counter;
+pthread_rwlock_t rwlock;
+
+//3个线程不定时写同一全局资源，5个线程不定时读同一全局资源
+void *th_write(void *arg)
+{
+   int t;
+   while (1) {
+      pthread_rwlock_wrlock(&rwlock);
+      t = counter;
+      usleep(100);
+      printf("write %x : counter=%d ++counter=%d\n", (int)pthread_self(), t, ++counter);
+      pthread_rwlock_unlock(&rwlock);
+      usleep(100);
+   }
+}
+
+void *th_read(void *arg)
+{
+   while (1) {
+      pthread_rwlock_rdlock(&rwlock);
+      printf("read %x : %d\n", (int)pthread_self(), counter);
+      pthread_rwlock_unlock(&rwlock);
+      usleep(100);
+   }
+}
+
+int main(void)
+{
+   int i;
+   pthread_t tid[8];
+   pthread_rwlock_init(&rwlock, NULL);
+   
+   for (i = 0; i < 3; i++)
+      pthread_create(&tid[i], NULL, th_write, NULL);
+   
+   for (i = 0; i < 5; i++)
+      pthread_create(&tid[i+3], NULL, th_read, NULL);
+   
+   pthread_rwlock_destroy(&rwlock);
+   for (i = 0; i < 8; i++)
+      pthread_join(tid[i], NULL);
+   
+   return 0;
+}
+```
+
+#### 2.6.5. 条件变量
+
+条件变量本身不是锁，但是它也可以造成线程阻塞。通常与互斥锁配合使用，给多个线程提供了一个汇合的场所
+
+```cpp
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+int pthread_cond_init(pthread_cond_t *restrict cond, const pthread_condattr_t *restrict attr); // 初始化
+int pthread_cond_destroy(pthread_cond_t *cond);
+int pthread_cond_wait(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex);
+/*
+1.阻塞等待条件变量cond满足
+2.释放已掌握的互斥锁(相当于pthread_mutex_unlock()动作)
+1、2两步为一个原子操作
+3.当被唤醒，pthread_cond_wait函数返回时，解除阻塞并重新申请获取互斥锁pthread_mutex_lock()
+*/
+int pthread_cond_timedwait(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex, const struct timespec *restrict abstime); // 限时等待一个条件变量
+/*
+struct timespec {
+   time_t tv_sec; // 秒
+   long tv_nsec; // 纳秒
+}
+struct timeval {
+   time_t tv_sec; // 秒
+   suseconds_t tv_usec; // 微秒
+}
+形参abstime：绝对时间(就是类似1999-1-1 00:00:01),这个是绝对时间
+   这里绝对时间是从Unix的元年(1970-1-1 00:00:00)开始计时
+这里的正确用法：
+   time_t cur = time(NULL); 获取当前时间
+   struct timespec t; 定义timespec结构体变量t
+   t.tv_sec = cur+1; 定时1秒
+   pthread_cond_timedwait(&cond, &mutex, &t); 传参
+*/
+int pthread_cond_signal(pthread_cond_t *cond); // 唤醒至少一个正在阻塞的线程(就是前面wait的线程)
+int pthread_cond_broadcast(pthread_cond_t *cond); // 唤醒全部正在阻塞的线程(广播)
+// 成功返回0，失败返回错误号
+```
+
+条件变量的优点：相对于互斥量，减少竞争(减少了消费者之间的竞争)。提高效率
+
+***生产者消费者模型***
+
+```cpp
+/* 生产者消费者模型
+有两个线程：
+   一个模拟生产者行为
+   一个模拟消费者行为
+两个线程同时操作一个共享资源
+   生产者向其中添加产品
+   消费者从中消费掉产品
+*/
+#include <stdlib.h>
+#include <pthread.h>
+#include <stdio.h>
+
+struct msg {
+   struct msg *next;
+   int num;
+};
+
+struct msg *head;
+pthread_cond_t has_product = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+void *consumer(void *p)
+{
+   struct msg *mp;
+   for (;;) {
+      pthread_mutex_lock(&lock);
+      while (head == NULL)
+         pthread_cond_wait(&has_product, &lock);
+      mp = head;
+      head = mp->next;
+      pthread_mutex_unlock(&lock);
+      printf("Consume %d\n", mp->num);
+      free(mp);
+      sleep(rand() % 5);
+   }
+}
+
+void *producter(void *p)
+{
+   struct msg *mp;
+   for (;;) {
+      mp = malloc(sizeof(struct msg));
+      mp->num = rand() % 1000 + 1;
+      printf("Produce %d\n", mp->num);
+      pthread_mutex_lock(&lock);
+      mp->next = head;
+      head = mp;
+      pthread_mutex_unlock(&lock);
+      pthread_cond_signal(&has_product);
+      sleep(rand() % 5);
+   }
+}
+
+int main(int argc, char *argv[])
+{
+   pthread_t pid, cid;
+   srand(time(NULL));
+
+   pthread_create(&pid, NULL, producter, NULL);
+   pthread_create(&cid, NULL, consumer, NULL);
+   pthread_join(pid, NULL);
+   pthread_join(cid, NULL);
+   
+   return 0;
+}
+```
+
+#### 2.6.6. 信号量
+
+进化版的互斥量，互斥量只能供应一个线程，而信号量能供应N个线程
+
+```cpp
+#include <semaphore.h>
+sem_t
+int sem_init(sem_t *sem, int pshared, unsigned int value);
+/*
+pshared：是否能在进程间共享：非0，可以。0，不可以。
+value：决定了占用信号量的线程的个数
+*/
+int sem_wait(sem_t *sem);
+/*
+信号量大于0，信号量--(相当于加一个锁)
+信号量等于0，造成线程阻塞
+*/
+int sem_trywait(sem_t *sem);
+int sem_timedwait(sem_t *sem, const struct timespec *restrict abstime);
+int sem_post(sem_t *sem);
+// 将信号量++，同时唤醒阻塞在信号量上的线程
+
+int sem_destroy(sem_t *sem);
+// 成功返回0，失败返回-1，并设置errno
+```
+
+生产者消费者实例
+
+```cpp
+#include <stdlib.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <semaphore.h>
+
+#define NUM 5
+int queue[NUM];
+sem_t blank_number, product_number;
+
+void *producer(void *arg)
+{
+   int p = 0;
+   while (1) {
+      sem_wait(&blank_number);
+      queue[p] = rand() % 1000 + 1;
+      printf("Produce %d\n", queue[p]);
+      sem_post(&product_number);
+      p = (p+1)%NUM;
+      sleep(rand()%5);
+   }
+}
+
+void *consumer(void *arg)
+{
+   int c = 0;
+   while (1) {
+      sem_wait(&product_number);
+      printf("Consume %d\n", queue[c]);
+      queue[c] = 0;
+      sem_post(&blank_number);
+      c = (c+1)%NUM;
+      sleep(rand()%5);
+   }
+}
+
+int main(int argc, char *argv[])
+{
+   pthread_t pid, cid;
+   sem_init(&blank_number, 0, NUM);
+   sem_init(&product_number, 0, 0);
+
+   pthread_create(&pid, NULL, producer, NULL);
+   pthread_create(&cid, NULL, consumer, NULL);
+   pthread_join(pid, NULL);
+   pthread_join(cid, NULL);
+   sem_destroy(&blank_number);
+   sem_destroy(&product_number);
+
+   return 0;
+}
+```
+
+生产者消费者(两个消费者)
+
+```cpp
+#include <stdlib.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <semaphore.h>
+
+#define NUM 5
+int queue[NUM];
+int c = 0;
+sem_t blank_number, product_number;
+pthread_mutex_t number;
+
+void *producer(void *arg)
+{
+   int p = 0;
+   while (1) {
+      sem_wait(&blank_number);
+      queue[p] = rand() % 1000 + 1;
+      printf("Produce %d\n", queue[p]);
+      sem_post(&product_number);
+      p = (p+1)%NUM;
+      sleep(rand()%5);
+   }
+}
+
+void *consumer(void *arg)
+{
+   while (1) {
+      pthread_mutex_lock(&number);
+      sem_wait(&product_number);
+      printf("Consume %u : %d\n", (unsigned int)pthread_self(), queue[c]);
+      queue[c] = 0;
+      sem_post(&blank_number);
+      c = (c+1)%NUM;
+      pthread_mutex_unlock(&number);
+      sleep(rand()%5);
+   }
+}
+
+int main(int argc, char *argv[])
+{
+   pthread_t pid, cid, cid_2;
+   sem_init(&blank_number, 0, NUM);
+   sem_init(&product_number, 0, 0);
+   pthread_mutex_init(&number, NULL);
+
+   pthread_create(&pid, NULL, producer, NULL);
+   pthread_create(&cid, NULL, consumer, NULL);
+   pthread_create(&cid_2, NULL, consumer, NULL);
+   pthread_join(pid, NULL);
+   pthread_join(cid, NULL);
+   pthread_join(cid_2, NULL);
+   sem_destroy(&blank_number);
+   sem_destroy(&product_number);
+   pthread_mutex_destroy(&number);
+
+   return 0;
+}
+```
+
+#### 2.6.7. 进程间同步
+
+##### 互斥量mutex
+
+进程间可以使用互斥锁，应该在pthread_mutex_init初始化之前，修改其属性为进程间共享。
+
+```cpp
+// 就是修改mutex的这个属性
+pthread_mutexattr_t mattr;
+
+int pthread_mutexattr_init(pthread_mutexattr_t *attr); // 初始化属性对象
+int pthread_mutexattr_destroy(pthread_mutexattr_t *attr); // 销毁属性对象
+int pthread_mutexattr_setpshared(pthread_mutexattr_t *attr, int pshared); // 修改属性
+/* pshared取值：
+线程锁：PTHREAD_PORCESS_PRIVATE(mutex的默认属性，进程间私有)
+进程锁：PTHREAD_PROCESS_SHARED
+*/
+```
+
+例子
+
+```cpp
+#include <stdio.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <string.h>
+
+struct mt {
+   int num;
+   pthread_mutex_t mutex;
+   pthread_mutexattr_t mutexattr;
+};
+
+int main(void)
+{
+   int fd, i;
+   struct mt *mm;
+   pid_t pid;
+   
+   fd = open("mt_test", O_CREAT | O_RDWR, 0777);
+   /* 不需要write,文件里初始值为0 */
+   ftruncate(fd, sizeof(*mm));
+   mm = mmap(NULL, sizeof(*mm), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+   close(fd);
+   
+   memset(mm, 0, sizeof(*mm));
+   /* 初始化互斥对象属性 */
+   pthread_mutexattr_init(&mm->mutexattr);
+   /* 设置互斥对象为PTHREAD_PROCESS_SHARED共享，即可以在多个进程的线程访问,PTHREAD_PROCESS_PRIVATE为同一进程的线程共享 */
+   pthread_mutexattr_setpshared(&mm->mutexattr,PTHREAD_PROCESS_SHARED);
+   pthread_mutex_init(&mm->mutex, &mm->mutexattr);
+   pid = fork();
+   
+   if (pid == 0){
+      /* 加10次。相当于加10 */
+      for (i=0;i<10;i++){
+         pthread_mutex_lock(&mm->mutex);
+         (mm->num)++;
+         printf("num++:%d\n",mm->num);
+         pthread_mutex_unlock(&mm->mutex);
+         sleep(1);
+      }
+   }
+   else if (pid > 0) {
+      /* 父进程完成x+2,加10次，相当于加20 */
+      for (i=0; i<10; i++){
+         pthread_mutex_lock(&mm->mutex);
+         mm->num += 2;
+         printf("num+=2:%d\n",mm->num);
+         pthread_mutex_unlock(&mm->mutex);
+         sleep(1);
+      }
+      wait(NULL);
+   }
+   pthread_mutex_destroy(&mm->mutex);
+   pthread_mutexattr_destroy(&mm->mutexattr);
+   /* 父子均需要释放 */
+   munmap(mm,sizeof(*mm));
+   unlink("mt_test");
+   
+   return 0;
+}
+```
+
+##### 文件锁
+
+使用fcntl提供文件锁，操作文件的进程没有获得锁时，可以打开，但无法执行read、write操作。
+
+```cpp
+#include <unistd.h>
+#include <fcntl.h>
+
+int fcntl(int fd, int cmd, ... /* arg */);
+
+/* 参数2：
+F_SETLK(struct flock*) 设置文件锁(trylock)
+F_SETLKW(struct flock*) 设置文件锁(lock) W->wait
+F_GETLK(struct flock*) 获取文件锁
+*/
+
+struct flock {
+   ...
+   short l_type; /* Type of lock: F_RDLCK, F_WRLCK, F_UNLCK */ // 锁的类型:读锁、写锁、解锁
+   short l_whence; /* How to interpret l_start: SEEK_SET, SEEK_CUR, SEEK_END */ // 偏移位置:起始、当前、末尾
+   off_t l_start; /* Starting offset for lock *off_t l_len; /* Number of bytes to lock */ // 起始偏移
+   off_t l_len; /* Number of bytes of lock */ // 长度：0表示整个文件加锁
+   pid_t l_pid; /* PID of process blocking our lock(F_GETLK only) */ // 持有该锁的进程ID
+   ...
+};
+```
+
+示例
+
+```cpp
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+void sys_err(char *str)
+{
+   perror(str);
+   exit(1);
+}
+
+int main(int argc, char *argv[])
+{
+   int fd;
+   struct flock f_lock;
+   if (argc < 2) {
+      printf("./a.out filename\n");
+      exit(1);
+   }
+   if ((fd = open(argv[1], O_RDWR)) < 0)
+      sys_err("open");
+   //f_lock.l_type = F_WRLCK;
+   f_lock.l_type = F_RDLCK;
+   f_lock.l_whence = SEEK_SET;
+   f_lock.l_start = 0;
+   f_lock.l_len = 0; //0表示整个文件加锁
+   
+   fcntl(fd, F_SETLKW, &f_lock);
+   printf("get flock\n");
+   sleep(10);
+   f_lock.l_type = F_UNLCK;
+   fcntl(fd, F_SETLKW, &f_lock);
+   printf("un flock\n");
+   close(fd);
+   
+   return 0;
+}
+```
+
+#### 哲学家吃饭问题
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <malloc.h>
+#include <time.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <semaphore.h>
+ 
+#define N 5
+ 
+sem_t chopsticks[N];//设置5种信号量，有5种不同类型的资源，每一种有1个,这样便于理解，因为每个哲学家需要的资源不同
+ 
+pthread_mutex_t mutex;//定义互斥锁
+ 
+int philosophers[N] = {0, 1, 2, 3, 4};//代表5个哲学家的编号
+ 
+void delay (int len) {
+ int i = rand() % len;
+ int x;
+ while (i > 0) {
+  x = rand() % len;
+  while (x > 0) {
+   x--;
+  }
+  i--;
+ }
+}
+ 
+void *philosopher (void* arg) {
+ int i = *(int *)arg;
+ int left = i;//左筷子的编号和哲学家的编号相同
+ int right = (i + 1) % N;//右筷子的编号为哲学家编号+1
+ while (1) {
+  printf("哲学家%d正在思考问题\n", i);
+  delay(60000);
+  
+  printf("哲学家%d饿了\n", i);
+ 
+  pthread_mutex_lock(&mutex);//加锁
+ 
+  sem_wait(&chopsticks[left]);//此时这个哲学家左筷子的信号量-1之后>=0时，表示能继续执行。
+  printf("哲学家%d拿起了%d号筷子,现在只有一支筷子,不能进餐\n", i, left);
+  sem_wait(&chopsticks[right]);
+  printf("哲学家%d拿起了%d号筷子\n", i, right);
+ 
+  pthread_mutex_unlock(&mutex);//解锁
+ 
+  printf("哲学家%d现在有两支筷子,开始进餐\n", i);
+  delay(60000);
+  sem_post(&chopsticks[left]);
+  printf("哲学家%d放下了%d号筷子\n", i, left);
+  sem_post(&chopsticks[right]);
+  printf("哲学家%d放下了%d号筷子\n", i, right);
+ }
+}
+ 
+int main (int argc, char **argv) {
+ srand(time(NULL));
+ pthread_t philo[N];
+ 
+ //信号量初始化
+ for (int i=0; i<N; i++) {
+  sem_init(&chopsticks[i], 0, 1);
+ }
+ 
+ pthread_mutex_init(&mutex,NULL);//初始化互斥锁
+ 
+ //创建线程
+ for (int i=0; i<N; i++) {
+  pthread_create(&philo[i], NULL, philosopher, &philosophers[i]);
+ }
+ 
+ //挂起线程
+ for (int i=0; i<N; i++) {
+  pthread_join(philo[i], NULL);
+ }
+ 
+ //销毁信号量
+ for (int i=0; i<N; i++) {
+  sem_destroy(&chopsticks[i]);
+ }
+ 
+ pthread_mutex_destroy(&mutex);//销毁互斥锁
+ 
+ return 0;
+}
+```
+
+## 3. 网络编程
+
+### 3.1. socket套接字
+
+### 3.2. TCP/IP/UDP
+
+### 3.3. 并发服务器开发
+
+#### 3.3.1. 多进程并发
+
+#### 3.3.2. 多线程并发
+
+#### 3.3.3. 异步I/O
+
+##### 3.3.3.1. epoll
+
+##### 3.3.3.2. select
+
+##### 3.3.3.3. poll
+
+## 4. shell编程
+
+### 4.1. 正则表达式
+
+### 4.2. 错误处理机制
 
 ***errno***
 
@@ -2397,4 +4608,32 @@ char *strerror_r(int errnum, char *buf, size_t buflen);
 /* GNU-specific *
 ```
 
-## 4. 数据库
+## 5. 数据库
+
+## 6. 小项目
+
+### 5.1. myshell
+
+用讲过的各种C函数实现一个简单的交互式Shell，要求：
+
+1. 给出提示符，让用户输入一行命令，识别程序名和参数并调用适当的exec函数执行程序，待执行完成后再次给出提示符。
+2. 识别和处理以下符号：
+   - 简单的标准输入输出重定向：仿照例 “wrapper”，先dup2然后exec。
+   - 管道（|）：Shell进程先调用pipe创建一对管道描述符，然后fork出两个子进程，一个子进程关闭读端，调用dup2把写端赋给标准输出，另一个子进程关闭写端，调用dup2把读端赋给标准输入，两个子进程分别调用exec执行程序，而Shell进程把管道的两端都关闭，调用wait等待两个子进程终止。
+
+你的程序应该可以处理以下命令：
+
+```txt
+○ls△-l△-R○>○file1○
+○cat○<○file1○|○wc△-c○>○file1○
+○表示零个或多个空格，△表示一个或多个空格
+```
+
+项目3步走
+
+1. 实现加载普通命令
+2. 实现重定向的功能
+3. 实现管道
+4. 实现多重管道支持
+
+![myshell](MD/assert/Linux系统编程/5-1-myshell.png)
