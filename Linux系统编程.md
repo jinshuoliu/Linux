@@ -4509,23 +4509,2181 @@ int main (int argc, char **argv) {
 
 ## 3. 网络编程
 
-### 3.1. socket套接字
+### 3.1. 网络基础
 
-### 3.2. TCP/IP/UDP
+#### 3.1.1. 模型
+
+***OSI七层模型***
+
+![OSI模型](MD/assert/Linux系统编程/3-1-1-OSI模型.png)
+
+1. 物理层：主要定义物理设备标准。
+   - 如网线的接口类型、光纤的接口类型、各种传输介质的传输速率等。
+   - 它的主要作用是传输比特流(就是由1、0转化为电流强弱来进行传输，到达目的地后再转化为1、0，也就是我们常说的数模转换与模数转换)。这一层的数据叫做比特。
+   - 集线器（Hub）是工作在物理层的网络设备，用于双绞线的连接和信号中继（将已衰减的信号再次放大使之传得更远）。
+2. 数据链路层：定义了如何让格式化数据以进行传输，以及如何让控制对物理介质的访问。
+   - 这一层通常还提供错误检测和纠正，以确保数据的可靠传输。
+   - 以太网、令牌环网等标准，链路层负责网卡设备的驱动、帧同步（就是说从网线上检测到什么信号算作新帧的开始）、冲突检测（如果检测到冲突就自动重发）、数据差错校验等工作。
+   - 交换机是工作在链路层的网络设备，可以在不同的链路层网络之间转发数据帧（比如十兆以太网和百兆以太网之间、以太网和令牌环网之间），由于不同链路层的帧格式不同，交换机要将进来的数据包拆掉链路层首部重新封装之后再转发。
+3. 网络层：在位于不同地理位置的网络中的两个主机系统之间提供连接和路径选择。
+   - Internet上的主机通过IP地址来标识，Internet上有大量路由器负责根据IP地址选择合适的路径转发数据包，数据包从Internet上的源主机到目的主机往往要经过十多个路由器。
+   - 路由器是工作在第三层的网络设备，同时兼有交换机的功能，可以在不同的链路层接口之间转发数据包，因此路由器需要将进来的数据包拆掉网络层和链路层两层首部并重新封装。
+   - IP协议不保证传输的可靠性，数据包在传输过程中可能丢失，可靠性可以在上层协议或应用程序中提供支持。
+   - 网络层负责点到点（point-to-point）的传输（这里的“点”指主机或路由器）
+4. 传输层：定义了一些传输数据的协议和端口号(WWW端口80等)。
+   - TCP(传输控制协议，传输效率低，可靠性强，用于传输可靠性要求高，数据量大的数据)。TCP是一种面向连接的、可靠的协议
+   - UDP(用户数据报协议，与TCP特性恰恰相反，用于传输可靠性要求不高，数据量小的数据，如QQ聊天数据就是通过这种方式传输的）UDP协议不面向连接，也不保证可靠性。 
+   - 主要是将从下层接收的数据进行分段和传输，到达目的地址后再进行重组。常常把这一层数据叫做段。
+   - 传输层负责端到端（end-to-end）的传输（这里的“端”指源主机和目的主机）
+5. 会话层：通过传输层(端口号：传输端口与接收端口)建立数据传输的通路。
+   - 主要在你的系统之间发起会话或者接受会话请求(设备之间需要互相认识可以是IP也可以是MAC或者是主机名)。
+6. 表示层：可确保一个系统的应用层所发送的信息可以被另一个系统的应用层读取。
+   - 例如，PC程序与另一台计算机进行通信，其中一台计算机使用扩展二一十进制交换码(EBCDIC)，而另一台则使用美国信息交换标准码（ASCII）来表示相同的字符。如有必要，表示层会通过使用一种通格式来实现多种数据格式之间的转换。
+7. 应用层：是最靠近用户的OSI层。这一层为用户的应用程序(例如电子邮件、文件传输和终端仿真)提供网络服务。
+
+***TCP/IP四层模式***
+
+![TCP/IP四层模型](MD/assert/Linux系统编程/3-1-1-TCP_IP四层模型.png)
+
+#### 3.1.2. 通信过程
+
+***同一网段***
+
+![TCP/IP通信过程](MD/assert/Linux系统编程/3-1-2-TCP_IP通信过程.png)
+
+***跨网段***
+
+![跨路由器通信过程](MD/assert/Linux系统编程/3-1-2-跨路由通信.png)
+
+***Multiplexing过程***
+
+![Multiplexing过程](MD/assert/Linux系统编程/3-1-2-Multiplexing过程.png)
+
+#### 3.1.3. 协议格式
+
+##### 数据包封装
+
+传输层及其以下的机制由内核提供，应用层由用户进程提供。
+
+![TCP/IP数据包封装](MD/assert/Linux系统编程/3-1-3-TCP_IP数据包封装.png)
+
+不同的协议层对数据包有不同的称谓
+
+- 传输层叫做段（segment）
+- 网络层叫做数据报（datagram）
+- 链路层叫做帧（frame）
+
+数据封装成帧后发到传输介质上，到达目的主机后每层协议再剥掉相应的首部，最后将应用层数据交给应用程序处理。
+
+##### 以太网帧格式
+
+![以太网帧格式](MD/assert/Linux系统编程/3-1-3-以太网帧格式.png)
+
+- 源地址和目的地址是指网卡的硬件地址（也叫MAC地址），长度是48位，是在网卡出厂时固化的。用ifconfig命令看一下，“HWaddr 00:15:F2:14:9E:3F”部分就是硬件地址。
+- 协议字段有三种值，分别对应IP、ARP、RARP。帧末尾是CRC校验码。
+- 以太网帧中的数据长度规定最小46字节，最大1500字节，ARP和RARP数据包的长度不够46字节，要在后面补填充位。
+   - 最大值1500称为以太网的最大传输单元（MTU），不同的网络类型有不同的MTU，如果一个数据包从以太网路由到拨号链路上，数据包长度大于拨号链路的MTU了，则需要对数据包进行分片（fragmentation）。
+   - ifconfig命令的输出中也有“MTU:1500”。注意，MTU这个概念指数据帧中有效载荷的最大长度，不包括帧首部的长度。
+
+##### ARP数据报格式
+
+功能:在通讯前获得目的主机的硬件地址。
+
+```txt
+条件：源主机的应用程序知道目的主机的IP地址与端口号。
+目的：得到目的主机的硬件地址。
+过程：源主机发出ARP请求，询问已知(目的主机)的IP地址对应的主机的硬件地址。
+   将这个请求广播到本地网段。
+   目的主机接收到广播的ARP请求，发送一个ARP应答数据包(包含自己的硬件地址)给源主机。
+```
+
+***ARP数据报的格式***
+
+![ARP数据报](MD/assert/Linux系统编程/3-1-3-ARP数据报.png)
+
+- 硬件类型指链路层网络类型，1为以太网。
+- 协议类型指要转换的地址类型，0x0800为IP地址。
+- 两个地址长度对于以太网地址和IP地址分别为6和4（字节）。
+- op字段为1表示ARP请求，op字段为2表示ARP应答。
+
+##### IP段格式
+
+***IP数据报格式***
+
+![IP数据报](MD/assert/Linux系统编程/3-1-3-IP数据报格式.png)
+
+IP数据报的首部长度和数据长度都是可变长的，但总是4字节的整数倍。
+
+***对于IPv4***
+
+- 4位版本字段是4。
+- 4位首部长度的数值是以4字节为单位的，最小值为5，也就是说首部长度最小是4x5=20字节，也就是不带任何选项的IP首部，4位能表示的最大值是15，也就是说首部长度最大是60字节。
+- 8位TOS字段
+   - 3个位用来指定IP数据报的优先级（目前已经废弃不用）
+   - 4个位表示可选的服务类型
+      - 最小延迟
+      - 最大吐量
+      - 最大可靠性
+      - 最小成本
+   - 一个位总是0。
+- 总长度是整个数据报（包括IP首部和IP层payload）的字节数。
+- 每传一个IP数据报，16位的标识加1，可用于分片和重新组装数据报。
+- 3位标志和13位片偏移用于分片。
+- TTL（Time to live)是这样用的：源主机为数据包设定一个生存时间，比如64，每过一个路由器就把该值减1，如果减到0就表示路由已经太长了仍然找不到目的主机的网络，就丢弃该包，因此这个生存时间的单位不是秒，而是跳（hop）。
+- 协议字段指示上层协议是TCP、UDP、ICMP还是IGMP。
+- 然后是校验和，只校验IP首部，数据的校验由更高层协议负责。
+- IPv4的IP地址长度为32位。
+
+##### UDP数据报格式
+
+***UDP数据段***
+
+![UDP数据段](MD/assert/Linux系统编程/3-1-3-UDP数据段.png)
+
+客户端主动发起请求，而服务器被动地等待、接收和应答请求，所以客户端必须知道服务器的IP以及端口号
+
+- 一些常见的网络协议有默认的服务器端口
+   - HTTP服务默认TCP协议的80端口
+   - FTP服务默认TCP协议的21端口
+   - TFTP服务默认UDP协议的69端口
+- 在使用客户端程序时，必须指定服务器的主机名或IP地址，如果不明确指定端口号则采用默认端口
+
+/etc/services中列出了所有well-known的服务端口和对应的传输层协议
+
+- 这是由IANA规定的，其中有些服务既可以用TCP也可以用UDP
+   - 为了清晰，IANA规定这样的服务采用相同的TCP或UDP默认端口号
+   - 而另外一些TCP和UDP的相同端口号却对应不同的服务。
+
+很多服务有well-known的端口号，然而客户端程序的端口号却不必是well-known的，往往是每次运行客户端程序时由系统自动分配一个空闲的端口号，用完就释放掉，称为ephemeral的端口号(因为服务器不会去主动的发送信号给客户端的端口)
+
+##### TCP数据报格式
+
+***TCP数据段***
+
+![TCP数据段](MD/assert/Linux系统编程/3-1-3-TCP数据段.png)
+
+- 源端口和目的端口：分别代表呼叫方和被呼叫方的TCP端口号，各占16位。
+   - 一个端口与主机的IP地址就可以完整地标识一个端点了，也就是构成套接字（Socket）。
+- 序号（Sequence Number）：指TCP数据段中的“数据”部分（不包含“数据段头”部分）的第一个字节的编号，占32位。
+   - 在一个TCP连接中，传送的数据字节流的每一个数据字节都要按顺序进行编号，在“数据段头”中标识的只是每个数据段的第一个数据字节的编号。整个要传送的字节流的起始序号必须在连接建立时设置。
+   - 例如，一个数据段的“序号”字段值是101，而该数字段中共有100个字节，表明本数据段的最后一个字节的编号是200。这样一来，下一个数据段的“序号”字段值应该是201，而不是102，这点要注意。
+- 确认号：指期望接收到对方下一个数据段中“数据”部分的第一个字节序号，占32位。
+   - 注意，“确认号”不是代表已经正确接收到的最后一个字节的序号。
+   - 例如，主机B已收到主机A发来的一个数据段，其序号值是101，而该数据段的长度是100字节。这表明主机B已收到主机A前200个字节，下一个期望要收到的数据段的第一个字节的序号应该是201，于是主机B在给主机A发送确认数据段时要把“确认号”设置为201。
+   - “序号”和“确认号”两个字段共同用于TCP服务中的差错控制，确保TCP数据传输的可靠性。
+- 数据偏移：指数据段中的“数据”部分起始处距离TCP数据段起始处的字节偏移量，占4位。
+   - 其实这里的“数据偏移”也是在确定TCP数据段头部分的长度，因为“数据”部分是紧接着数据段头的。
+   - 因为TCP数据段头中有不确定的“可选项”字段，所以数据偏移字段是非常必要的。
+   - 注意的是，数据偏移量是以32位（即4字节）为单位来计算的，而不是以单个字节来计算的。因为4个比特位可以表示的最大数为15，所以数据偏移量最大为60字节，这也是TCP数据段头部分的最大长度。在没有可选项字段的情况下，TCP首部长度为20字节(这就是TCP的头部最小长度)。
+- 保留：这是为将来应用而保留的6个比特位，目前应全设置为0。
+- ACK：Acknowledgement（确认）控制位，指示TCP数据段中的“确认号”字段是否有效，占1位。仅当ACK位置1时才表示“确认号”字段有效，否则表示“确认号”字段无效，应用层实体在读取数据时可以不管“确认号”字段。
+- PSH：Push（推）控制位，指示是否需要立即把收到的该数据段提交给应用进程，而置0时没有这个要求，可以先缓存起来。
+- RST：Reset（重置）控制位，用于重置、释放一个已经混乱的传输连接，然后重建新的传输连接，占1位。
+   - RST位置1时，释放当前传输连接，然后可以重新建立新的传输连接。
+- SYN：Synchronization（同步）控制位，用来在传输连接建立时同步传输连接序号，占1位。
+   - 当SYN位置1时，表示这是一个连接请求或连接确认报文。
+   - 当SYN=1，而ACK=0时，表明这是一个连接请求数据段。如果对方同意建立连接，则对方会返回一个SYN=1、ACK=1的确认。
+- FIN:Final（最后）控制位，用于释放一个传输连接，占1位。
+   - 当FIN位置1时，表示数据已经全部传输完成，发送端没有数据要传输了，要求释放当前信号，但是接收端仍然可以继续接受还没有接受完的数据。
+   - 在正常传输时，该位置0。
+- 窗口大小: 指示发送此TCP数据段的主机上用来存储传入数据段的窗口大小，也即发送者当前还可以接受的最大字节数，占16位。
+   - TCP的“窗口大小”字段与CDT一样是使用可变大小的滑动窗口协议来进行流量控制。
+   - “窗口大小”字段的值告诉接受本数据段的主机，从本数据段中所设置的“确认号”值算起，本端目前允许对端发送的字节数，是作为让对方设置其发送窗口大小的依据。
+      - 假设本次所发送的数据段的“确认号”字段值501，而“窗口大小”字段值是100，则从501算起，本端还可以接受100字节（字节号是501~600）。
+- 检验和: 是对“数据段头”、“数据”、和“伪头部”这三部分进行校验，占16位。
+   - “伪头部”包括源主机和目的主机的32位IP地址、TCP协议号（6），以及TCP数据段长度。
+- 紧急指针: 仅当前面的URG控制位置1时才有意义，它指出本数据段中为紧急数据的字节数，占16位。
+   - “紧急指针”字段指明了紧急数据的末尾在数据段中的位置。当所有紧急数据处理完后，TCP就会告诉应用程序恢复到正常操作。
+   - 就是将紧急数据直接发送出去，不需要等待缓存池里数据量足够。
+- 可选项：“可选项”字段是可选的，且长度可变，最长达40字节。当没有使用该字段时，TCP头部的长度是20字节。
+   - 它可以包括窗口缩放选项（Windows Scale Option， WSopt）、MSS（最大数据段大小）、SACK（选择性确认）选项、时间戳（Timestamp）选项等。
+- 数据：这是有应用层的应用进程提交的数据，作为TCP数据段的“数据”（有效载荷）部分。
+
+##### 三次握手、四次挥手
+
+![TCP连接](MD/assert/Linux系统编程/3-1-3-TCP连接建立断开.png)
+
+- 这是包括一次连接，三次数据传输，一次断开连接
+- 建立连接协议（三次握手）
+   - 客户端发送一个带SYN标志的TCP报文到服务器。这是三次握手过程中的报文1
+   - 服务器端回应客户端的，这是三次握手中的第2个报文
+      - 这个报文同时带ACK标志和SYN标志。它表示对刚才客户端SYN报文的回应；同时又标志SYN给客户端，询问客户端是否准备好进行数据通讯。
+   - 客户必须再次回应服务段一个ACK报文，这是报文段3
+- 连接终止协议（四次挥手）
+   - (由于TCP连接是全双工的，因此每个方向都必须单独进行关闭。这原则是当一方完成它的数据发送任务后就能发送一个FIN来终止这个方向的连接。收到一个FIN只意味着这一方向上没有数据流动，一个TCP连接在收到一个FIN后仍能发送数据。首先进行关闭的一方将执行主动关闭，而另一方执行被动关闭)
+   - TCP客户端发送一个FIN，用来关闭客户到服务器的数据传送（报文段4）
+   - 服务器收到这个FIN，它发回一个ACK，确认序号为收到的序号加1（报文段5）
+      - 和SYN一样，一个FIN将占用一个序号
+   - 服务器关闭客户端的连接，发送一个FIN给客户端（报文段6）
+   - 客户段发回ACK报文确认，并将确认序号设置为收到序号加1（报文段7）
+
+##### 状态转换图
+
+![TCP状态转换](MD/assert/Linux系统编程/3-1-3-TCP状态转换图.png)
+
+- 虚线代表服务器，实线代表客户端
+
+| 状态 | 意义 |
+|--|--|
+| CLOSED | 表示初始状态 |
+| LISTEN | 表示服务器端的某个SOCKET处于监听状态，可以接受连接了 |
+| SYN_RCVD | 这个状态表示接受到了SYN报文，这个状态是服务器端的SOCKET在建立TCP连接时的三次握手会话过程中的一个中间状态(很短暂，基本上用netstat你是很难看到这种状态的，除非你特意写了一个客户端测试程序，故意将三次TCP握手过程中最后一个ACK报文不予发送)这种状态时，当收到客户端的ACK报文后，它会进入到ESTABLISHED状态 |
+| SYN_SENT | 这个状态表示客户端已发送SYN报文。与SYN_RCVD遥想呼应，当客户端SOCKET执行CONNECT连接时，它首先发送SYN报文，因此也随即它会进入到了SYN_SENT状态，并等待服务端的发送三次握手中的第2个报文 |
+| ESTABLISHED | 表示连接已经建立了。 |
+| FIN_WAIT_1 | FIN_WAIT_1和FIN_WAIT_2状态的真正含义都是表示等待对方的FIN报文。(而这两种状态的区别是：FIN_WAIT_1状态实际上是当SOCKET在ESTABLISHED状态时，它想主动关闭连接，向对方发送了FIN报文，此时该SOCKET即进入到FIN_WAIT_1状态。而当对方回应ACK报文后，则进入到FIN_WAIT_2状态，当然在实际的正常情况下，无论对方何种情况下，都应该马上回应ACK报文，所以FIN_WAIT_1状态一般是比较难见到的，而FIN_WAIT_2状态还有时常常可以用netstat看到) |
+| FIN_WAIT_2 | FIN_WAIT_2状态下的SOCKET，表示半连接，即有一方要求close连接，但另外还告诉对方，我暂时还有点数据需要传送给你，稍后再关闭连接 |
+| TIME_WAIT | 表示收到了对方的FIN报文，并发送出了ACK报文，就等2MSL后即可回到CLOSED可用状态了。如果FIN_WAIT_1状态下，收到了对方同时带FIN标志和ACK标志的报文时，可以直接进入到TIME_WAIT状态，而无须经过FIN_WAIT_2状态。 |
+| CLOSING | 双方同时close一个SOCKET，同时发送FIN报文的情况,表示双方都正在关闭SOCKET连接。(这种状态比较特殊，实际情况中应该是很少见，属于一种比较罕见的例外状态)正常情况下，当你发送FIN报文后，按理来说是应该先收到（或同时收到）对方的 ACK报文，再收到对方的FIN报文。但是CLOSING状态表示你发送FIN报文后，并没有收到对方的ACK报文，反而却也收到了对方的FIN报文 |
+| CLOSE_WAIT | 表示在等待关闭(当对方close一个SOCKET后发送FIN报文给自己，你系统毫无疑问地会回应一个ACK报文给对方，此时则进入到CLOSE_WAIT状态。接下来呢，实际上你真正需要考虑的事情是察看你是否还有数据发送给对方，如果没有的话，那么你也就可以close这个SOCKET，发送FIN报文给对方，也即关闭连接)在CLOSE_WAIT状态下，需要完成的事情是等待你去关闭连接 |
+| LAST_ACK | 这个状态还是比较容易好理解的，它是被动关闭一方在发送FIN报文后，最后等待对方的ACK报文。当收到ACK报文后，也即可以进入到CLOSED可用状态了 |
+
+##### 滑动窗口(TCP流量控制)
+
+![滑动窗口](MD/assert/Linux系统编程/3-1-3-滑动窗口.png)
+
+- 上图在接收端用小方块表示1K数据
+   - 实心的小方块表示已接收到的数据
+   - 虚线框表示接收缓冲区，因此套在虚线框中的空心小方块表示窗口大小
+   - (从图中可以看出，随着应用程序提走数据，虚线框是向右滑动的，因此称为滑动窗口)
+- 数据传输过程
+   - 发送端发起连接，声明最大段尺寸是1460，初始序号是0，窗口大小是4K。
+      - 表示“我的接收缓冲区还有4K字节空闲，你发的数据不要超过4K”。
+   - 接收端应答连接请求，声明最大段尺寸是1024，初始序号是8000，窗口大小是6K。
+   - 发送端应答，三方握手结束。
+   - 发送端发出段4-9，每个段带1K的数据，发送端根据窗口大小知道接收端的缓冲区满了，因此停止发送数据。
+   - 接收端的应用程序提走2K数据，接收缓冲区又有了2K空闲，接收端发出段10，在应答已收到6K数据的同时声明窗口大小为2K。
+   - 接收端的应用程序又提走2K数据，接收缓冲区有4K空闲，接收端发出段11，重新声明窗口大小为4K。
+   - 发送端发出段12-13，每个段带2K数据，段13同时还包含FIN位。
+   - 接收端应答接收到的2K数据（6145-8192），再加上FIN位占一个序号8193，因此应答序号是8194，连接处于半关闭状态，接收端同时声明窗口大小为2K。
+   - 接收端的应用程序提走2K数据，接收端重新声明窗口大小为4K。
+   - 接收端的应用程序提走剩下的2K数据，接收缓冲区全空，接收端重新声明窗口大小为6K。
+   - 接收端的应用程序在提走全部数据后，决定关闭连接，发出段17包含FIN位，发送端应答，连接完全关闭。
+
+#####  TCP半链接状态
+
+简单的说：服务器是全双工，当四次挥手进行了前两次，此时服务器不能发数据，但还能接收数据，此时的状态就是半链接状态。
+
+```cpp
+#include <sys/socket.h>
+int shutdown(int sockfd, int how);
+/*
+sockfd: 需要关闭的socket的描述符
+how:允许为shutdown操作选择以下几种方式:
+   SHUT_RD：关闭连接的读端。也就是该套接字不再接受数据，任何当前在套接字接受缓冲区的数据将被丢弃。进程将不能对该套接字发出任何读操作。TCP套接字接受该调用之后接受到的任何数据将被确认然后无声的丢弃掉。
+   SHUT_WR:关闭连接的写端，进程不能在对此套接字发出写操作
+   SHUT_RDWR:相当于调用shutdown两次：首先是以SHUT_RD,然后以SHUT_WR
+*/
+```
+
+***注意***
+
+1. 如果有多个进程共享一个套接字，close每被调用一次，计数减1，直到计数为0时，也就是所用进程都调用了close，套接字将被释放。 
+2. 在多进程中如果一个进程中shutdown(sfd, SHUT_RDWR)后其它的进程将无法进行通信. 如果一个进程close(sfd)将不会影响到其它进程.
+
+##### 检测tcp一端是否异常断开
+
+**心跳检测机制** 
+
+Heart-Beat线程：在接收和发送数据时自己设计一个守护进程，发送Heart-Beat包，客户端/服务器受到该包后，立刻返回相应的包就可以完成检测是否在线。
+
+这样会很灵活，但是会改变现有的通讯协议。UNIX网络编程不推荐使用SO_KEEPALIVE来做心跳检测，从业务层作心跳检测比较好。
+
+***设置TCP属性***
+
+SO_KEEPALIVE保持连接检测对方主机是否崩溃，避免服务器永远阻塞于TCP连接的输入。
+
+- 设置该选项后，如果两个小时内在此套接字的任意方向都没有数据交换，TCP就自动给对方发一个保持存活探测分节。
+   - 这是一个对方必须响应的TCP分节，它会导致三种情况：
+      - 对方接收，一切正常：以期望的ACK响应。两小时后再次探测
+      - 对方已崩溃且已重新启动：以RST响应。套接字的待处理错误被设置为ECONNRESET，套接口本身则被关闭
+      - 对方无响应：源自berkeley的TCP发送另外8个探测分节，相隔75秒一个，试图得到一个响应。在发出第一个探测分节11分钟15秒后仍然无响应就放弃。套接口的待处理错误被置为ETIMEOUT，套接口本身则被关闭。
+   - 如ICMP错误是“host unreachable(主机不可达)",说明对方主机并没有崩溃，但是不可到达，这种情况下待处理错误被置为EHOSTUNREACH。
+
+我们可以设置SO_KEEPALIVE属性使得我们在两小时后发现对方的TCP连接是否依然存在。
+
+```cpp
+keepAlive = 1;
+Setsockopt(listedfd, SOL_SOCKET, SO_KEEPALIVE, (void*)&keepAlive, sizeof(keepAlive));
+```
+
+这种等待时间过长了，从TCP-Keepalive-HOWTO上可以知道一共有两种方式可以设置
+
+1. 修改内核关于网络方面的配置参数
+2. SOL_TCP字段的
+   - TCP_KEEPIDLE
+   - TCP_KEEPINTVL
+   - TCP_KEEPCNT
+
+```cpp
+int keepIdle = 1000;
+int keepInterval = 10;
+int keepCount = 10;
+
+Setsockopt(listenfd, SOL_TCP, TCP_KEEPIDLE, (void*)&keepIdle, sizeof(keepIdle));
+Setsockopt(listenfd, SOL_TCP, TCP_KEEPINTVL, (void*)&keepInterval, sizeof(keepInterval));
+Setsockopt(listenfd, SOL_TCP, TCP_KEEPCNT, (void*)&keepCount, sizeof(keepCount));
+```
+
+SO_KEEPALIVE设置空闲两小时才发送一个”保持存活探测分节“，不能保证实施检测。对于判断网络断开时间太长，对于需要及时响应的程序不太适应。
+可以修改时间间隔参数，但是会影响到所有打开选项的套接口！关联了完成端口socket可能会忽略调该套接字选项。
+
+##### 2MSL
+
+2MSL TIME_WAIT状态的存在有两个理由：
+
+1. 让4次握手关闭流程更加可靠；
+   - 4次握手的最后一个ACK是是由主动关闭方发送出去的，若这个ACK丢失，被动关闭方会再次发一个FIN过来。
+   - 若主动关闭方能够保持一个2MSL的TIME_WAIT状态，则有更大的机会让丢失的ACK被再次发送出去。
+2. 防止lost duplicate对后续新建正常链接的传输造成破坏。
+   - lost duplicate在实际的网络中非常常见，经常是由于路由器产生故障，路径无法收敛，导致一个packet在路由器A，B，C之间做类似死循环的跳转。
+      - IP头部有个TTL，限制了一个包在网络中的最大跳数，因此这个包有两种命运，
+         - 要么最后TTL变为0，在网络中消失
+         - 要么TTL在变为0之前路由器路径收敛，它凭借剩余的TTL跳数终于到达目的地。
+      - 但非常可惜的是TCP通过超时重传机制在早些时候发送了一个跟它一模一样的包，并先于它达到了目的地，因此它的命运也就注定被TCP协议栈抛弃。
+   - 另外一个概念叫做incarnation connection，指跟上次的socket pair一摸一样的新连接，叫做incarnation of previous connection。
+      - lost duplicate加上incarnation connection，则会对我们的传输造成致命的错误。
+         - TCP是流式的，所有包到达的顺序是不一致的，依靠序列号由TCP协议栈做顺序的拼接；
+         - 假设一个incarnation connection这时收到的seq=1000, 来了一个lost duplicate为seq=1000,len=1000, 则tcp认为这个lost duplicate合法，并存放入了receive buffer，导致传输出现错误。
+   - 通过一个2MSL TIME_WAIT状态，确保所有的lost duplicate都会消失掉，避免对新连接造成错误。
+
+该状态为什么设计在主动关闭这一方：
+
+1. 发最后ack的是主动关闭一方
+2. 只要有一方保持TIME_WAIT状态，就能起到避免incarnation connection在2MSL内的重新建立，不需要两方都有
+
+```txt
+   RFC要求socket pair在处于TIME_WAIT时，不能再起一个incarnation connection。
+
+   但绝大部分TCP实现、强加了更为严格的限制。
+   在2MSL等待期间，socket中使用的本地端口在默认情况下不能再被使用。
+   若A 10.234.5.5:1234和B 10.55.55.60:6666建立了连接，A主动关闭，那么在A端只要port为1234，无论对方的port和ip是什么，都不允许再起服务。
+   显而易见这是比RFC更为严格的限制，RFC仅仅是要求socket pair不一致，而实现当中只要这个port处于TIME_WAIT，就不允许起连接。
+
+   这个限制对主动打开方来说是无所谓的，因为一般用的是临时端口；但对于被动打开方，一般是server，就悲剧了，因为server一般是熟知端口。比如http，一般端口是80，不可能允许这个服务在2MSL内不能起来。
+
+   解决方案：给服务器的socket设置SO_REUSEADDR选项，这样的话就算熟知端口处于TIME_WAIT状态，在这个端口上依旧可以将服务启动。当然，虽然有了SO_REUSEADDR选项，但sockt pair这个限制依旧存在。
+
+   比如上面的例子，A通过SO_REUSEADDR选项依旧在1234端口上起了监听，但这时我们若是从B通过6666端口去连它，TCP协议会告诉我们连接失败，原因为Address already in use
+```
+
+#### 3.1.4. 名词术语解析
+
+##### 什么是路由
+
+1. 网络信息从信源到信宿的路径.路由是指路由器从一个接口上收到数据包，根据数据包的目的地址进行定向并转发到另一个接口的过程。
+2. 路由通常与桥接来对比，它们的主要区别在于：
+   - 桥接发生在OSI参考模型的第二层（数据链路层）
+   - 路由发生在第三层（网络层）
+   - (这一区别使二者在传递信息的过程中使用不同的信息，从而以不同的方式来完成其任务)
+3. 确定最佳路径,通过网络传输信息
+
+##### 路由器工作原理
+
+路由器（Router）:连接因特网中各局域网、广域网的设备，它会根据信道的情况自动选择和设定路由，以最佳路径，按前后顺序发送信号的设备。
+
+路由器工作于OSI七层协议中的第三层，其主要任务是接收来自一个网络接口的数据包，根据其中所含的目的地址，决定转发到下一个目的地址。
+
+***转发过程***
+
+- 路由器首先得在转发路由表中查找它的目的地址，若找到了目的地址，就在数据包的帧格前添加下一个MAC地址，同时IP数据报头的TTL（Time To Live）域也开始减数， 并重新计算校验和。
+- 当数据包被送到输出端口时，它需要按顺序等待，以便被传送到输出链路上。
+   - 路由器在工作时能够按照某种路由通信协议查找设备中的路由表。
+   - 如果到某一特定节点有一条以上的路径，则基本预先确定的路由准则是选择最优（或最经济）的传输路径。
+   - 由于各种网络段和其相互连接情况可能会因环境变化而变化，因此路由情况的信息一般也按所使用的路由信息协议的规定而定时更新。
+
+***几个重要的功能***
+
+- 更新路由表，便保持路由信息的有效性。
+- 先按照预定的规则把较大的数据分解成适当大小的数据包，再将这些数据包分别通过相同或不同路径发送出去。
+   - 当这些数据包按先后顺序到达目的地后，再把分解的数据包按照一定顺序包装成原有的报文形式。
+- 路由器的分层寻址功能，该功能可以帮助具有很多节点站的网络来存储寻址信息，同时还能在网络间截获发送到远地网段的报文，起转发作用；
+- 选择最合理的路由，引导通信也是路由器基本功能
+- 多协议路由器还可以连接使用不同通信协议的网络段，成为不同通信协议网络段之间的通信平台。
+
+路由和交换之间的主要区别是:
+
+- 交换发生在OSI参考模型第二层（数据链路层）
+- 路由发生在第三层，即网络层。
+- 这一区别决定了路由和交换在移动信息的过程中需使用不同的控制信息，所以两者实现各自功能的方式是不同的。
+
+##### 路由表(Routing Table)
+
+路由表(路由择域信息库(RIB))是一个存储在路由器或者联网计算机中的电子表格（文件）或类数据库。路由表存储着指向特定网络地址的路径。
+
+##### 以太网交换机工作原理
+
+基于以太网传输数据的交换机，工作于OSI网络参考模型的数据链路层，是一种基于MAC地址识别、完成以太网数据帧转发的网络设备。以太网采用共享总线型传输媒体方式的局域网。
+
+以太网交换机的结构：
+
+- 每个端口都直接与主机相连，并且一般都工作在全双工方式。
+- 交换机能同时连通许多对端口，使每一对相互通信的主机都能像独占通信媒体那样，进行无冲突地传输数据。
+
+##### hub工作原理
+
+是中继器的一种，其区别仅在于集线器能够提供更多的端口服务，集线器又叫多口中继器。
+
+**功能**：它在网络中只起到信号放大和重发作用(随机选出某一端口的设备，并让它独占全部带宽，与集线器的上联设备(交换机、路由器或服务器等)进行通信)，其目的是扩大网络的传输范围，而不具备信号的定向传送能力，是—个标准的共享式设备。
+
+Hub只与它的上联设备(如上层Hub、交换机或服务器)进行通信，同层的各端口之间不会直接进行通信，而是通过上联设备再将信息广播到所有端口上。
+
+- 在同一Hub的不同两个端口之间进行通信，要经过两步操作：
+   - 将信息上传到上联设备.
+   - 上联设备再将该信息广播到所有端口上.
+
+##### 半双工/全双工
+
+Full-duplex(全双工）在通道中同时双向数据传输的能力。
+Half-duplex(半双工）在通道中同时只能沿着一个方向传输数据。
+
+##### DNS服务器
+
+域名系统 (Domain Name System) :可以将域名和IP地址相互映射的一个分布式数据库,由解析器以及域名服务器组成的。
+
+域名服务器:保存有该网络中所有主机的域名和对应IP地址，并具有将域名转换为IP地址功能的服务器。
+
+##### 局域网(local area network;LAN)
+
+覆盖小范围的计算机网
+
+***特点***
+
+- 覆盖的地理范围较小，只在一个相对独立的局部范围内联，如一座或集中的建筑群内。
+- 使用专门铺设的传输介质进行联网，数据传输速率高（10Mb/s～10Gb/s）
+- 通信延迟时间短，可靠性较高
+- 局域网可以支持多种传输介质
+
+##### 广域网(wide area network;WAN)
+
+实现不同地区的局域网或城域网的互连，可提供不同地区、城市和国家之间的计算机通信的远程计算机网。
+
+广域网的通信子网主要使用分组交换技术，可以利用公用分组交换网、卫星通信网和无线分组交换网，它将分布在不同地区的局域网或计算机系统互连起来，达到资源共享的目的。
+
+互联网是世界范围内最大的广域网。
+
+- 适应大容量与突发性通信的要求；
+- 适应综合业务服务的要求；
+- 开放的设备接口与规范化的协议；
+- 完善的通信服务与网络管理。
+
+##### 端口
+
+逻辑意义上的端口，一般是指TCP/IP协议中的端口，端口号的范围从0到65535。
+
+- 端口号小于256的定义为常用端口，服务器一般都是通过常用端口号来识别的。
+- 客户端只需保证该端口号在本机上是惟一的就可以了。客户端口号因存在时间很短暂又称临时端口号；
+- 大多数TCP/IP实现给临时端口号分配1024—5000之间的端口号。大于5000的端口号是为其他服务器预留的。
+
+##### MTU
+
+MTU:最大传输单元（Maximum Transmission Unit，MTU），是指一种通信协议的某一层上面所能通过的最大数据包大小（以字节为单位）。
+
+最大传输单元这个参数通常与通信接口有关（网络接口卡、串口等）。
+
+以下是一些协议的MTU
+
+- FDDI协议：4352字节
+- 以太网（Ethernet）协议：1500字节
+- PPPoE（ADSL）协议：1492字节
+- X.25协议（Dial Up/Modem）：576字节
+- Point-to-Point：4470字节
+
+#### 3.1.5. 常见网络知识
+
+1. TCP如何建立链接
+2. TCP如何通信
+3. TCP如何关闭链接
+4. 什么是滑动窗口
+5. 什么是半关闭
+6. 局域网内两台机器如何利用tcp/ip通信?
+7. internet上两台主机如何进行通信
+8. 如何在internet上识别唯一一个进程(通过“IP地址+端口号”来区分不同的服务)
+9. 为什么说tcp是可靠的链接，udp不可靠
+10. 路由器和交换机的区别
+11. 点到点，端到端
+
+### 3.2. socket套接字
+
+在TCP/IP协议中，“IP地址+TCP或UDP端口号”唯一标识网络通讯中的一个进程，“IP地址+端口号”就称为socket。
+
+为TCP/IP协议设计的应用层编程接口称为socket API。
+
+![socket API](MD/assert/Linux系统编程/3-2-socket_API.png)
+
+#### 3.2.1. 预备知识
+
+##### 网络字节序
+
+内存、磁盘、网络数据流有大小端之分。
+
+大端和小端实际上是字节顺序与存储地址顺序相对应的两种模式，但是不管是大端还是小端，数据一定是从内存的低地址依次向高地址读取和写入。
+
+- 对于大端模式，即低地址存放高字节数：
+- 对于小端存储，即低地址存储低字节数：
+
+```cpp
+#include <arpa/inet.h>
+
+uint32_t htonl(uint32_t hostlong);
+uint16_t htons(uint16_t hostshort);
+uint32_t ntohl(uint32_t netlong);
+uint16_t ntohs(uint16_t netshort);
+
+// h表示host，n表示network，l表示32位长整数，s表示16位短整数。
+// 如果主机是小端字节序，这些函数将参数做相应的大小端转换然后返回，如果主机是大端字节序，这些函数不做转换，将参数原封不动地返回。
+```
+
+##### IP地址转换函数
+
+早期
+
+```cpp
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+int inet_aton(const char *cp, struct in_addr *inp);
+in_addr_t inet_addr(const char *cp);
+char *inet_ntoa(struct in_addr in);
+// 只能处理IPv4的ip地址
+// 不可重入函数
+// 注意参数是struct in_addr
+```
+
+现在
+
+```cpp
+#include <arpa/inet.h>
+int inet_pton(int af, const char *src, void *dst);
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
+// 支持IPv4和IPv6
+// 可重入函数
+```
+
+其中inet_pton和inet_ntop不仅可以转换IPv4的in_addr，还可以转换IPv6的in6_addr，因此函数接口是void *addrptr。
+
+##### sockaddr数据结构
+
+strcut sockaddr很多网络编程函数诞生早于IPv4协议，那时候都使用的是sockaddr结构体,为了向前兼容，现在sockaddr退化成了（void *）的作用，传递一个地址给函数，至于这个函数是sockaddr_in还是sockaddr_in6，由地址族确定，然后函数内部再强制类型转化为所需的地址类型。
+
+![sockaddr数据结构](MD/assert/Linux系统编程/3-2-1-sockaddr数据结构.png)
+
+```cpp
+struct sockaddr {
+   sa_family_t sa_family; /* address family, AF_xxx */ // 地址族
+   char sa_data[14]; /* 14 bytes of protocol address */
+};
+
+struct sockaddr_in { // IPv4
+   __kernel_sa_family_t sin_family; /* Address family */ // 取前16位就可以了，不用管它
+   __be16 sin_port; /* Port number */ // 16位端口号
+   struct in_addr sin_addr; /* Internet address */ // 32位IP地址，就是4个字节
+   /* Pad to size of `struct sockaddr'. */
+   unsigned char __pad[__SOCK_SIZE__ - sizeof(short int) - sizeof(unsigned short int) - sizeof(struct in_addr)]; // 8位填充
+};
+
+/* Internet address. */
+struct in_addr {
+   __be32 s_addr;
+};
+
+struct sockaddr_in6 { // IPv6
+   unsigned short int sin6_family; /* AF_INET6 */
+   __be16 sin6_port; /* Transport layer port # */
+   __be32 sin6_flowinfo; /* IPv6 flow information */ // 流信息？
+   struct in6_addr sin6_addr; /* IPv6 address */ // IPv6地址是个结构体，需要16个字节
+   __u32 sin6_scope_id; /* scope id (new in RFC2553) */
+};
+
+struct in6_addr {
+   union {
+      __u8 u6_addr8[16];
+      __be16 u6_addr16[8];
+      __be32 u6_addr32[4];
+   } in6_u;
+   #define s6_addr in6_u.u6_addr8
+   #define s6_addr16 in6_u.u6_addr16
+   #define s6_addr32 in6_u.u6_addr32
+};
+
+#define UNIX_PATH_MAX 108
+struct sockaddr_un { // 本地的套接字
+   __kernel_sa_family_t sun_family; /* AF_UNIX */
+   char sun_path[UNIX_PATH_MAX]; /* pathname */
+};
+```
+
+- Pv4和IPv6的地址格式定义在netinet/in.h中
+   - IPv4地址用sockaddr_in结构体表示，包括16位端口号和32位IP地址
+   - IPv6地址用sockaddr_in6结构体表示，包括16位端口号、128位IP地址和一些控制字段
+- UNIX Domain Socket的地址格式定义在sys/un.h中，用sock-addr_un结构体表示。
+- 各种socket地址结构体的开头都是相同的
+   - 前16位表示整个结构体的长度（并不是所有UNIX的实现都有长度字段，如Linux就没有）
+   - 后16位表示地址类型
+- IPv4、IPv6和Unix Domain Socket的地址类型分别定义为常数AF_INET、AF_INET6、AF_UNIX。
+   - 这样，只要取得某种sockaddr结构体的首地址，不需要知道具体是哪种类型的sockaddr结构体，就可以根据地址类型字段确定结构体中的内容。
+   - 因此，socket API可以接受各种类型的sockaddr结构体指针做参数，例如bind、accept、connect等函数，这些函数的参数应该设计成void *类型以便接受各种类型的指针，但是sock API的实现早于ANSI C标准化，那时还没有void *类型，因此这些函数的参数都用struct sockaddr *类型表示，在传递参数之前要强制类型转换一下，例如：
+
+```cpp
+struct sockaddr_in servaddr;
+/* initialize servaddr */
+bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+```
+
+#### 3.2.2. 网络套接字函数
+
+##### socket
+
+socket()**打开一个网络通讯端口**，如果成功的话，就像open()一样返回一个文件描述符，应用程序可以像读写文件一样用read/write在网络上收发数据，如果socket()调用出错则返回-1。
+
+- 对于IPv4，domain参数指定为AF_INET。
+- 对于TCP协议，type参数指定为SOCK_STREAM，表示面向流的传输协议。
+- 对于UDP协议，type参数指定为SOCK_DGRAM，表示面向数据报的传输协议。
+
+```cpp
+#include <sys/types.h> /* See NOTES */
+#include <sys/socket.h>
+int socket(int domain, int type, int protocol);
+/*
+domain:
+   AF_INET 这是大多数用来产生socket的协议，使用TCP或UDP来传输，用IPv4的地址
+   AF_INET6 与上面类似，不过是来用IPv6的地址
+   AF_UNIX 本地协议，使用在Unix和Linux系统上，一般都是当客户端和服务器在同一台及其上的时候使用
+type:
+   SOCK_STREAM 这个协议是按照顺序的、可靠的、数据完整的基于字节流的连接。这是一个使用最多的socket类型，这个socket是使用TCP来进行传输。
+   SOCK_DGRAM 这个协议是无连接的、固定长度的传输调用。该协议是不可靠的，使用UDP来进行它的连接。
+   SOCK_SEQPACKET 这个协议是双线路的、可靠的连接，发送固定长度的数据包进行传输。必须把这个包完整的接受才能进行读取。
+   SOCK_RAW 这个socket类型提供单一的网络访问，这个socket类型使用ICMP公共协议。（ping、traceroute使用该协议）
+   SOCK_RDM 这个类型是很少使用的，在大部分的操作系统上没有实现，它是提供给数据链路层使用，不保证数据包的顺序
+protocol:(它指定为0就好了)
+   0 默认协议
+*/
+// 返回值：成功返回一个新的文件描述符，失败返回-1，设置errno
+```
+
+##### bind
+
+bind()的作用是将参数sockfd和addr绑定在一起，使sockfd这个**用于网络通讯的文件描述符监听addr所描述的地址和端口号**。
+
+服务器程序所监听的网络地址和端口号通常是固定不变的，客户端程序得知服务器程序的地址和端口号后就可以向服务器发起连接，因此服务器需要调用bind**绑定一个固定的网络地址和端口号**。
+
+```cpp
+#include <sys/types.h> /* See NOTES */
+#include <sys/socket.h>
+
+int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+
+/*
+sockfd：
+   socket文件描述符
+addr:
+   构造出IP地址加端口号
+addrlen:
+   sizeof(addr)长度
+返回值：
+   成功返回0，失败返回-1, 设置errno
+*/
+```
+
+前面讲过，struct sockaddr *是一个通用指针类型，addr参数实际上可以接受多种协议的sockaddr结构体，而它们的长度各不相同，所以需要第三个参数addrlen指定结构体的长度。如：
+
+```cpp
+struct sockaddr_in servaddr;
+bzero(&servaddr, sizeof(servaddr)); // 将整个结构体清零
+servaddr.sin_family = AF_INET; // 设置地址类型，设置为IPv4
+servaddr.sin_addr.s_addr = htonl(INADDR_ANY); // 设置IP地址
+servaddr.sin_port = htons(8000); // 设置端口号
+```
+
+首先将整个结构体清零，然后设置地址类型为AF_INET，**网络地址为INADDR_ANY，这个宏表示本地的任意IP地址**，因为服务器可能有多个网卡，每个网卡也可能绑定多个IP地址，这样设置可以在所有的IP地址上监听，直到与某个客户端建立了连接时才确定下来到底用哪个IP地址，端口号为8000。
+
+##### listen
+
+典型的服务器程序可以同时服务于多个客户端，当有客户端发起连接时，服务器调用的accept()返回并接受这个连接，如果有大量的客户端发起连接而服务器来不及处理，尚未accept的客户端就处于连接等待状态。
+
+***listen()声明sockfd处于监听状态***，并且最多允许有backlog个客户端处于连接待状态,如果接收到更多的连接请求就忽略。
+
+```cpp
+#include <sys/types.h> /* See NOTES */
+#include <sys/socket.h>
+int listen(int sockfd, int backlog);
+/*
+sockfd:
+   socket文件描述符
+backlog:
+   排队建立3次握手队列和刚刚建立3次握手队列的链接数和
+listen()成功返回0，失败返回-1。
+*/
+```
+
+查看系统默认backlog:cat /proc/sys/net/ipv4/tcp_max_syn_backlog
+
+##### accept
+
+三次握手完成后，**服务器调用accept()接受连接**，如果服务器调用accept()时还没有客户端的连接请求，就阻塞等待直到有客户端连接上来。
+
+```cpp
+#include <sys/types.h> /* See NOTES */
+#include <sys/socket.h>
+int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+/*
+sockdf:
+   socket文件描述符
+addr:
+   传出参数(如果是NULL，表示不关心客户端的地址)，返回链接客户端地址信息，含IP地址和端口号(在accept()返回时传出客户端的地址和端口号)
+addrlen:
+   传入传出参数（值-结果）
+   传入sizeof(addr)大小，是调用者提供的缓冲区长度以避免缓冲区溢出问题
+   函数返回时返回真正接收到地址结构体的大小，是客户端地址结构体的实际长度（有可能没有占满调用者提供的缓冲区）
+返回值：
+   成功返回一个新的socket文件描述符，用于和客户端通信，失败返回-1，设置errno
+*/
+```
+
+我们的服务器程序结构是这样的：
+
+```cpp
+while (1) { // 每次循环处理一个客户端连接
+   cliaddr_len = sizeof(cliaddr); // 传入传出参数，每次调用重新赋值
+   connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
+   /*
+   listenfd：之前监听文件的描述符
+   connfd：另外一个文件描述符，之后与客户端通过它来通讯，通讯结束关闭它，而不关闭listenfd   
+   */
+   n = read(connfd, buf, MAXLINE);
+   ......
+   close(connfd);
+}
+```
+
+##### connect
+
+**客户端需要调用connect()连接服务器**，connect和bind的参数形式一致，区别在于bind的参数是自己的地址，而connect的参数是对方的地址。
+
+```cpp
+#include <sys/types.h> /* See NOTES */
+#include <sys/socket.h>
+int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+/*
+sockdf:
+   socket文件描述符
+addr:
+   传入参数，指定服务器端地址信息，含IP地址和端口号
+addrlen:
+   传入参数,传入sizeof(addr)大小
+返回值：
+   成功返回0，失败返回-1，设置errno
+*/
+```
+
+#### 3.2.3. CS模型TCP
+
+![TCP协议通信流程](MD/assert/Linux系统编程/3-2-3-TCP协议通讯流程.png)
+
+***server端***
+
+从客户端读字符，然后将每个字符转换为大写并回送给客户端。
+
+```cpp
+/* server.c */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(void)
+{
+   struct sockaddr_in servaddr, cliaddr;
+   socklen_t cliaddr_len;
+   int listenfd, connfd;
+   char buf[MAXLINE];
+   char str[INET_ADDRSTRLEN];
+   int i, n;
+
+   listenfd = socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+   servaddr.sin_port = htons(SERV_PORT);
+   bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   listen(listenfd, 20);
+   printf("Accepting connections ...\n");
+
+   while (1) {
+      cliaddr_len = sizeof(cliaddr);
+      connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
+      n = read(connfd, buf, MAXLINE);
+      printf("received from %s at PORT %d\n",
+      inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)),
+      ntohs(cliaddr.sin_port));
+      for (i = 0; i < n; i++)
+         buf[i] = toupper(buf[i]);
+         write(connfd, buf, n);
+         close(connfd);
+      }
+   }
+```
+
+***client端***
+
+客户端的作用是从命令行参数中获得一个字符串发给服务器，然后接收服务器返回的字符串并打印。
+
+```cpp
+/* client.c */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(int argc, char *argv[])
+{
+   struct sockaddr_in servaddr;
+   char buf[MAXLINE];
+   int sockfd, n;
+   char *str;
+   
+   if (argc != 2) {
+      fputs("usage: ./client message\n", stderr);
+      exit(1);
+   }
+   
+   str = argv[1];
+   
+   sockfd = socket(AF_INET, SOCK_STREAM, 0);
+   
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
+   servaddr.sin_port = htons(SERV_PORT);
+   connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   
+   write(sockfd, str, strlen(str));
+   n = read(sockfd, buf, MAXLINE);
+   printf("Response from server:\n");
+   write(STDOUT_FILENO, buf, n);
+   
+   close(sockfd);
+   
+   return 0;
+}
+```
+
+客户端不需要固定的端口号，因此不必调用bind()，客户端的端口号由内核自动分配。
+
+- 注意，客户端不是不允许调用bind()，只是没有必要调用bind()固定一个端口号，服务器也不是必须调用bind()，但如果服务器不调用bind()，内核会自动给服务器分配监听端口，每次启动服务器时端口号都不一样，客户端要连接服务器就会遇到麻烦。
+
+客户端和服务器启动后可以查看链接情况：netstat -apn|grep 8000
+
+#### 3.2.4. CS模型UDP
+
+![UDP处理模型](MD/assert/Linux系统编程/3-2-4-UDP处理模型.png)
+
+由于UDP不需要维护连接，程序逻辑简单了很多，但是UDP协议是不可靠的，实际上有很多保证通讯可靠性的机制需要在应用层实现。
+
+编译运行server，在两个终端里各开一个client与server交互，看看server是否具有并发服务的能力。用Ctrl+C关闭server，然后再运行server，看此时client还能否和server联系上。和前面TCP程序的运行结果相比较，体会无连接的含义。
+
+***server端***
+
+```cpp
+/* server.c */
+#include <stdio.h>
+#include <string.h>
+#include <netinet/in.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(void)
+{
+   struct sockaddr_in servaddr, cliaddr;
+   socklen_t cliaddr_len;
+   int sockfd;
+   char buf[MAXLINE];
+   char str[INET_ADDRSTRLEN];
+   int i, n;
+
+   sockfd = Socket(AF_INET, SOCK_DGRAM, 0); // 打开网络通讯端口,参数设置使用IPv4地址，使用UDP
+   // 为它设置地址类型，设置地址，设置端口号
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+   servaddr.sin_port = htons(SERV_PORT);
+   Bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)); // 设置监听端口
+   
+   printf("Accepting connections ...\n");
+   
+   while (1) {
+      cliaddr_len = sizeof(cliaddr);
+      n = recvfrom(sockfd, buf, MAXLINE, 0, (struct sockaddr *)&cliaddr, &cliaddr_len); // 从（已连接）套接口上接收数据，并捕获数据发送源的地址。
+      if (n == -1)
+         perr_exit("recvfrom error");
+      printf("received from %s at PORT %d\n",
+         inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)),
+         ntohs(cliaddr.sin_port));
+      for (i = 0; i < n; i++)
+         buf[i] = toupper(buf[i]);
+      n = sendto(sockfd, buf, n, 0, (struct sockaddr *)&cliaddr, sizeof(cliaddr)); // sendto() 用来将数据由指定的socket传给对方主机。
+      if (n == -1)
+         perr_exit("sendto error");
+   }
+}
+```
+
+***client端***
+
+```cpp
+/* client.c */
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(int argc, char *argv[])
+{
+   struct sockaddr_in servaddr;
+   int sockfd, n;
+   char buf[MAXLINE];
+   char str[INET_ADDRSTRLEN];
+   socklen_t servaddr_len;
+   sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
+   servaddr.sin_port = htons(SERV_PORT);
+   while (fgets(buf, MAXLINE, stdin) != NULL) {
+      n = sendto(sockfd, buf, strlen(buf), 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
+      if (n == -1)
+         perr_exit("sendto error");
+      n = recvfrom(sockfd, buf, MAXLINE, 0, NULL, 0);
+      if (n == -1)
+         perr_exit("recvfrom error");
+      Write(STDOUT_FILENO, buf, n);
+   }
+
+   Close(sockfd);
+   
+   return 0;
+}
+```
+
+#### 3.2.5. 出错处理封装函数
+
+把与socket相关的一些系统函数加上错误处理代码包装成新的函数，做成一个模块wrap.c
+
+就是自己封装一下接口，使得主程序的可读性强。
+
+```cpp
+/* wrap.c */
+#include <stdlib.h>
+#include <errno.h>
+#include <sys/socket.h>
+
+void perr_exit(const char *s)
+{
+   perror(s);
+   exit(1);
+}
+
+int Accept(int fd, struct sockaddr *sa, socklen_t *salenptr)
+{
+   int n;
+
+again:
+   if ( (n = accept(fd, sa, salenptr)) < 0) {
+      if ((errno == ECONNABORTED) || (errno == EINTR))
+         goto again;
+      else
+      perr_exit("accept error");
+   }
+
+   return n;
+}
+
+void Bind(int fd, const struct sockaddr *sa, socklen_t salen)
+{
+   if (bind(fd, sa, salen) < 0)
+      perr_exit("bind error");
+}
+
+void Connect(int fd, const struct sockaddr *sa, socklen_t salen)
+{
+   if (connect(fd, sa, salen) < 0)
+      perr_exit("connect error");
+}
+
+void Listen(int fd, int backlog)
+{
+   if (listen(fd, backlog) < 0)
+      perr_exit("listen error");
+}
+
+int Socket(int family, int type, int protocol)
+{
+   int n;
+   if ( (n = socket(family, type, protocol)) < 0)
+      perr_exit("socket error");
+   
+   return n;
+}
+
+ssize_t Read(int fd, void *ptr, size_t nbytes)
+{
+   ssize_t n;
+again:
+   if ( (n = read(fd, ptr, nbytes)) == -1) {
+      if (errno == EINTR)
+         goto again;
+      else
+         return -1;
+   }
+   return n;
+}
+
+ssize_t Write(int fd, const void *ptr, size_t nbytes)
+{
+   ssize_t n;
+again:
+   if ( (n = write(fd, ptr, nbytes)) == -1) {
+      if (errno == EINTR)
+         goto again;
+      else
+         return -1;
+   }
+   return n;
+}
+
+void Close(int fd)
+{
+   if (close(fd) == -1)
+      perr_exit("close error");
+}
+
+ssize_t Readn(int fd, void *vptr, size_t n)
+{
+   size_t nleft;
+   ssize_t nread;
+   char *ptr;
+   ptr = vptr;
+   nleft = n;
+   
+   while (nleft > 0) {
+      if ( (nread = read(fd, ptr, nleft)) < 0) {
+         if (errno == EINTR)
+            nread = 0;
+         else
+            return -1;
+      } else if (nread == 0)
+         break;
+      nleft -= nread;
+      ptr += nread;
+   }
+   
+   return n - nleft;
+}
+
+ssize_t Writen(int fd, const void *vptr, size_t n)
+{
+   size_t nleft;
+   ssize_t nwritten;
+   const char *ptr;
+   ptr = vptr;
+   nleft = n;
+   
+   while (nleft > 0) {
+      if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
+         if (nwritten < 0 && errno == EINTR)
+            nwritten = 0;
+         else
+            return -1;
+      }
+      nleft -= nwritten;
+      ptr += nwritten;
+   }
+   
+   return n;
+}
+
+static ssize_t my_read(int fd, char *ptr)
+{
+   static int read_cnt;
+   static char *read_ptr;
+   static char read_buf[100];
+   
+   if (read_cnt <= 0) {
+again:
+      if ( (read_cnt = read(fd, read_buf, sizeof(read_buf))) < 0) {
+         if (errno == EINTR)
+            goto again;
+         return -1;
+      } else if (read_cnt == 0)
+         return 0;
+      read_ptr = read_buf;
+   }
+   
+   read_cnt--;
+   *ptr = *read_ptr++;
+   
+   return 1;
+}
+
+ssize_t Readline(int fd, void *vptr, size_t maxlen)
+{
+   ssize_t n, rc;
+   char c, *ptr;
+   ptr = vptr;
+   for (n = 1; n < maxlen; n++) {
+      if ( (rc = my_read(fd, &c)) == 1) {
+         *ptr++ = c;
+         if (c == '\n')
+            break;
+      } else if (rc == 0) {
+            *ptr = 0;
+            return n - 1;
+      } else
+         return -1;
+   }
+   *ptr = 0;
+   
+   return n;
+}
+```
+
+***wrap.h***
+
+```cpp
+/* wrap.h */
+#ifndef __WRAP_H_
+#define __WRAP_H_
+void perr_exit(const char *s);
+int Accept(int fd, struct sockaddr *sa, socklen_t *salenptr);
+void Bind(int fd, const struct sockaddr *sa, socklen_t salen);
+void Connect(int fd, const struct sockaddr *sa, socklen_t salen);
+void Listen(int fd, int backlog);
+int Socket(int family, int type, int protocol);
+ssize_t Read(int fd, void *ptr, size_t nbytes);
+ssize_t Write(int fd, const void *ptr, size_t nbytes);
+void Close(int fd);
+ssize_t Readn(int fd, void *vptr, size_t n);
+ssize_t Writen(int fd, const void *vptr, size_t n);
+static ssize_t my_read(int fd, char *ptr);
+ssize_t Readline(int fd, void *vptr, size_t maxlen);
+#endif
+```
 
 ### 3.3. 并发服务器开发
 
+![并发服务器](MD/assert/Linux系统编程/3-3-并发服务器开发.png)
+
 #### 3.3.1. 多进程并发
+
+使用多进程并发服务器时要考虑以下几点：
+
+1. 父最大文件描述个数(父进程中需要close关闭accept返回的新文件描述符)
+2. 系统内创建进程个数(内存大小相关)
+3. 进程创建过多是否降低整体服务性能(进程调度)
+
+***server***
+
+```cpp
+/* server.c */
+#include <stdio.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+void do_sigchild(int num)
+{
+   waitpid(0, NULL, WNOHANG);
+}
+
+int main(void)
+{
+   struct sockaddr_in servaddr, cliaddr;
+   socklen_t cliaddr_len;
+   int listenfd, connfd;
+   char buf[MAXLINE];
+   char str[INET_ADDRSTRLEN];
+   int i, n;
+   pid_t pid;
+   struct sigaction newact;
+   
+   newact.sa_handler = do_sigchild;
+   sigemptyset(&newact.sa_mask);
+   newact.sa_flags = 0;
+   sigaction(SIGCHLD, &newact, NULL);
+   listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+   servaddr.sin_port = htons(SERV_PORT);
+   Bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   Listen(listenfd, 20);
+   printf("Accepting connections ...\n");
+
+   while (1) {
+      cliaddr_len = sizeof(cliaddr);
+      connfd = Accept(listenfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
+      pid = fork();
+      if (pid == 0) {
+      Close(listenfd);
+      while (1) {
+         n = Read(connfd, buf, MAXLINE);
+         if (n == 0) {
+            printf("the other side has been closed.\n");
+            break;
+         }
+         printf("received from %s at PORT %d\n",
+         inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)),
+         ntohs(cliaddr.sin_port));
+         for (i = 0; i < n; i++)
+            buf[i] = toupper(buf[i]);
+         Write(connfd, buf, n);
+      }
+      Close(connfd);
+      return 0;
+   }
+   else if (pid > 0) {
+      Close(connfd);
+   }
+   else
+      perr_exit("fork");
+   }
+}
+```
+
+***client***
+
+```cpp
+/* client.c */
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(int argc, char *argv[])
+{
+   struct sockaddr_in servaddr;
+   char buf[MAXLINE];
+   int sockfd, n;
+   
+   sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
+   servaddr.sin_port = htons(SERV_PORT);
+   Connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   while (fgets(buf, MAXLINE, stdin) != NULL) {
+      Write(sockfd, buf, strlen(buf));
+      n = Read(sockfd, buf, MAXLINE);
+      if (n == 0)
+         printf("the other side has been closed.\n");
+      else
+         Write(STDOUT_FILENO, buf, n);
+   }
+   Close(sockfd);
+   
+   return 0;
+}
+```
 
 #### 3.3.2. 多线程并发
 
-#### 3.3.3. 异步I/O
+在使用线程模型开发服务器时需考虑以下问题：
 
-##### 3.3.3.1. epoll
+1. 调整进程内最大文件描述符上限
+2. 线程如有共享数据，考虑线程同步
+3. 服务于客户端线程退出时，退出处理。（退出值，分离态）
+4. 系统负载，随着链接客户端增加，导致其它线程不能及时得到CPU
 
-##### 3.3.3.2. select
+***server***
 
-##### 3.3.3.3. poll
+```cpp
+/* server.c */
+#include <stdio.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+struct s_info {
+   struct sockaddr_in cliaddr;
+   int connfd;
+};
+
+void *do_work(void *arg)
+{
+   int n,i;
+   struct s_info *ts = (struct s_info*)arg;
+   char buf[MAXLINE];
+   char str[INET_ADDRSTRLEN];
+
+   /* 可以在创建线程前设置线程创建属性,设为分离态,哪种效率高内？ */
+   pthread_detach(pthread_self());
+   while (1) {
+      n = Read(ts->connfd, buf, MAXLINE);
+      if (n == 0) {
+         printf("the other side has been closed.\n");
+         break;
+      }
+      printf("received from %s at PORT %d\n",
+      inet_ntop(AF_INET, &(*ts).cliaddr.sin_addr, str, sizeof(str)),
+      ntohs((*ts).cliaddr.sin_port));
+      for (i = 0; i < n; i++)
+         buf[i] = toupper(buf[i]);
+      Write(ts->connfd, buf, n);
+   }
+   Close(ts->connfd);
+}
+
+int main(void)
+{
+   struct sockaddr_in servaddr, cliaddr;
+   socklen_t cliaddr_len;
+   int listenfd, connfd;
+   int i = 0;
+   pthread_t tid;
+   struct s_info ts[383];
+   
+   listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+   servaddr.sin_port = htons(SERV_PORT);
+   Bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   Listen(listenfd, 20);
+   printf("Accepting connections ...\n");
+   
+   while (1) {
+      cliaddr_len = sizeof(cliaddr);
+      connfd = Accept(listenfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
+      ts[i].cliaddr = cliaddr;
+      ts[i].connfd = connfd;
+      /* 达到线程最大数时，pthread_create出错处理, 增加服务器稳定性 */
+      pthread_create(&tid, NULL, do_work, (void*)&ts[i]);
+      i++;
+   }
+   return 0;
+}
+```
+
+***client***
+
+```cpp
+/* client.c */
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(int argc, char *argv[])
+{
+   struct sockaddr_in servaddr;
+   char buf[MAXLINE];
+   int sockfd, n;
+   
+   sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
+   servaddr.sin_port = htons(SERV_PORT);
+   Connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   
+   while (fgets(buf, MAXLINE, stdin) != NULL) {
+      Write(sockfd, buf, strlen(buf));
+      n = Read(sockfd, buf, MAXLINE);
+      if (n == 0)
+         printf("the other side has been closed.\n");
+      else
+         Write(STDOUT_FILENO, buf, n);
+   }
+   Close(sockfd);
+   return 0;
+}
+```
+
+#### 3.3.3. 多路I/O转接服务器
+
+##### 3.3.3.1. select
+
+1. select能监听的文件描述符个数**受限于FD_SETSIZE,一般为1024**，单纯改变进程打开的文件描述符个数并不能改变select监听文件个数
+2. 解决1024以下客户端时使用select是很合适的，但如果链接客户端过多，select采用的是轮询模型，会大大降低服务器响应效率，不应在select上投入更多精力
+
+```cpp
+#include <sys/select.h>
+
+/* According to earlier standards */
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
+/*
+nfds: 要监控文件描述符个数，监控的文件描述符集里最大文件描述符加1，因为此参数会告诉内核检测前多少个文件描述符的状态
+
+readfds：监控有读数据到达文件描述符集合，传入传出参数
+writefds：监控写数据到达文件描述符集合，传入传出参数
+exceptfds：监控异常发生达文件描述符集合,如带外数据到达异常，传入传出参数
+(要监控文件描述符的(读、写、异常)属性,想要监控什么属性，就设置什么属性，可以同时监控多个属性)
+
+timeout：定时阻塞监控时间，3种情况(就是定时机制)
+   1.NULL，永远等下去
+   2.设置timeval，等待固定时间
+   3.设置timeval里时间均为0，检查描述字后立即返回，轮询
+*/
+struct timeval {
+   long tv_sec; /* seconds */
+   long tv_usec; /* microseconds */
+};
+
+void FD_CLR(int fd, fd_set *set); // 把文件描述符集合里fd清0
+int FD_ISSET(int fd, fd_set *set); // 测试文件描述符集合里fd是否置1
+void FD_SET(int fd, fd_set *set); // 把文件描述符集合里fd位置1
+void FD_ZERO(fd_set *set); // 把文件描述符集合里所有位清0
+```
+
+***server***
+
+```cpp
+/* server.c */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(int argc, char *argv[])
+{
+   int i, maxi, maxfd, listenfd, connfd, sockfd;
+   int nready, client[FD_SETSIZE]; /* FD_SETSIZE 默认为 1024 */
+   ssize_t n;
+   fd_set rset, allset;
+   char buf[MAXLINE];
+   char str[INET_ADDRSTRLEN]; /* #define INET_ADDRSTRLEN 16 */
+   socklen_t cliaddr_len;
+   struct sockaddr_in cliaddr, servaddr;
+   
+   listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+   servaddr.sin_port = htons(SERV_PORT);
+
+   Bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   Listen(listenfd, 20); /* 默认最大128 */
+   maxfd = listenfd; /* 初始化 */
+   maxi = -1; /* client[]的下标 */
+
+   for (i = 0; i < FD_SETSIZE; i++)
+      client[i] = -1; /* 用-1初始化client[] */
+
+   FD_ZERO(&allset);
+   FD_SET(listenfd, &allset); /* 构造select监控文件描述符集 */
+
+   for ( ; ; ) {
+      rset = allset; /* 每次循环时都从新设置select监控信号集 */
+      nready = select(maxfd+1, &rset, NULL, NULL, NULL);
+
+      if (nready < 0)
+         perr_exit("select error");
+
+      if (FD_ISSET(listenfd, &rset)) { /* new client connection */
+         cliaddr_len = sizeof(cliaddr);
+         connfd = Accept(listenfd, (struct sockaddr *)&cliaddr, &cliaddr_len);
+         printf("received from %s at PORT %d\n",
+         inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)),
+         ntohs(cliaddr.sin_port));
+
+         for (i = 0; i < FD_SETSIZE; i++)
+            if (client[i] < 0) {
+               client[i] = connfd; /* 保存accept返回的文件描述符到client[]里 */
+               break;
+            }
+
+         /* 达到select能监控的文件个数上限 1024 */
+         if (i == FD_SETSIZE) {
+            fputs("too many clients\n", stderr);
+            exit(1);
+         }
+
+         FD_SET(connfd, &allset); /* 添加一个新的文件描述符到监控信号集里 */
+
+         if (connfd > maxfd)
+            maxfd = connfd; /* select第一个参数需要 */
+         if (i > maxi)
+            maxi = i; /* 更新client[]最大下标值 */
+         if (--nready == 0)
+            continue; /* 如果没有更多的就绪文件描述符继续回到上面select阻塞监听,负责处理未处理完的就绪文件描述符 */
+      }
+
+      for (i = 0; i <= maxi; i++) { /* 检测哪个clients 有数据就绪 */
+         if ( (sockfd = client[i]) < 0)
+            continue;
+
+         if (FD_ISSET(sockfd, &rset)) {
+            if ( (n = Read(sockfd, buf, MAXLINE)) == 0) {
+               /* 当client关闭链接时，服务器端也关闭对应链接 */
+               Close(sockfd);
+               FD_CLR(sockfd, &allset); /* 解除select监控此文件描述符 */
+               client[i] = -1;
+            } else {
+               int j;
+               for (j = 0; j < n; j++)
+                  buf[j] = toupper(buf[j]);
+               Write(sockfd, buf, n);
+            }
+
+            if (--nready == 0)
+               break;
+         }
+      }
+   }
+
+   close(listenfd);
+
+   return 0;
+}
+```
+
+***client***
+
+```cpp
+/* client.c */
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(int argc, char *argv[])
+{
+   struct sockaddr_in servaddr;
+   char buf[MAXLINE];
+   int sockfd, n;
+   
+   sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
+   servaddr.sin_port = htons(SERV_PORT);
+   Connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   
+   while (fgets(buf, MAXLINE, stdin) != NULL) {
+      Write(sockfd, buf, strlen(buf));
+      n = Read(sockfd, buf, MAXLINE);
+   
+      if (n == 0)
+         printf("the other side has been closed.\n");
+      else
+         Write(STDOUT_FILENO, buf, n);
+   }
+   Close(sockfd);
+   
+   return 0;
+}
+```
+
+pselect 给出pselect原型，此模型用的不多，可参考select模型自行编写C/S
+
+```cpp
+#include <sys/select.h>
+int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, const struct timespec *timeout, const sigset_t *sigmask);
+
+struct timespec {
+   long tv_sec; /* seconds */
+   long tv_nsec; /* nanoseconds */
+};
+```
+
+用sigmask替代当前进程的阻塞信号集，调用返回后还原原有阻塞信号集
+
+##### 3.3.3.2. poll
+
+```cpp
+#include <poll.h>
+
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+
+struct pollfd { // 监控一个就需要开辟一个这个
+   int fd; /* 文件描述符 */
+   short events; /* 监控的事件 */
+   short revents; /* 监控事件中满足条件返回的事件 */
+};
+/*
+监控的事件:
+   POLLIN普通或带外优先数据可读,即POLLRDNORM | POLLRDBAND
+   POLLRDNORM-数据可读
+   POLLRDBAND-优先级带数据可读
+   POLLPRI 高优先级可读数据
+   
+   POLLOUT普通或带外数据可写
+   POLLWRNORM-数据可写
+   POLLWRBAND-优先级带数据可写
+   
+   POLLERR 发生错误
+   POLLHUP 发生挂起
+   POLLNVAL 描述字不是一个打开的文件
+
+nfds 监控数组中有多少文件描述符需要被监控
+timeout 毫秒级等待
+-1：阻塞等，#define INFTIM -1 Linux中没有定义此宏
+0：立即返回，不阻塞进程
+>0：等待指定毫秒数，如当前系统时间精度不够毫秒，向上取值
+*/
+// 如果不再监控某个文件描述符时，可以把pollfd中，fd设置为-1，poll不再监控此pollfd，下次返回时，把revents设置为0。
+
+// ppoll GNU定义了ppoll(非POSIX标准)，可以支持设置信号屏蔽字，可参考poll模型自行实现C/S
+
+#define _GNU_SOURCE /* See feature_test_macros(7) */
+#include <poll.h>
+int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout_ts, const sigset_t *sigmask);
+// 它只是将时间更加精细
+```
+
+***server***
+
+```cpp
+/* server.c */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <poll.h>
+#include <errno.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+#define OPEN_MAX 1024
+
+int main(int argc, char *argv[])
+{
+   int i, j, maxi, listenfd, connfd, sockfd;
+   int nready;
+   ssize_t n;
+   char buf[MAXLINE], str[INET_ADDRSTRLEN];
+   socklen_t clilen;
+   struct pollfd client[OPEN_MAX];
+   struct sockaddr_in cliaddr, servaddr;
+   
+   listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+   servaddr.sin_port = htons(SERV_PORT);
+   Bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   Listen(listenfd, 20);
+   client[0].fd = listenfd;
+   client[0].events = POLLRDNORM; /* listenfd监听普通读事件 */
+   
+   for (i = 1; i < OPEN_MAX; i++)
+      client[i].fd = -1; /* 用-1初始化client[]里剩下元素 */
+   
+   maxi = 0; /* client[]数组有效元素中最大元素下标 */
+   
+   for ( ; ; ) {
+      nready = poll(client, maxi+1, -1); /* 阻塞 */
+      if (client[0].revents & POLLRDNORM) { /* 有客户端链接请求 */
+         clilen = sizeof(cliaddr);
+         connfd = Accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
+         printf("received from %s at PORT %d\n",
+         inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)),
+         ntohs(cliaddr.sin_port));
+         for (i = 1; i < OPEN_MAX; i++)
+            if (client[i].fd < 0) {
+               client[i].fd = connfd; /* 找到client[]中空闲的位置，存放accept返回的connfd */
+               break;
+            }
+         
+         if (i == OPEN_MAX)
+            perr_exit("too many clients");
+         client[i].events = POLLRDNORM; /* 设置刚刚返回的connfd，监控读事件 */
+         if (i > maxi)
+            maxi = i; /* 更新client[]中最大元素下标 */
+         if (--nready <= 0)
+            continue; /* 没有更多就绪事件时,继续回到poll阻塞 */
+      }
+      for (i = 1; i <= maxi; i++) { /* 检测client[] */
+         if ( (sockfd = client[i].fd) < 0)
+            continue;
+         if (client[i].revents & (POLLRDNORM | POLLERR)) {
+            if ( (n = Read(sockfd, buf, MAXLINE)) < 0) {
+               if (errno == ECONNRESET) { /* 当收到 RST标志时 */
+                  /* connection reset by client */
+                  printf("client[%d] aborted connection\n", i);
+                  Close(sockfd);
+                  client[i].fd = -1;
+               } else
+                  perr_exit("read error");
+            } else if (n == 0) {
+               /* connection closed by client */
+               printf("client[%d] closed connection\n", i);
+               Close(sockfd);
+               client[i].fd = -1;
+            } else {
+               for (j = 0; j < n; j++)
+                  buf[j] = toupper(buf[j]);
+               Writen(sockfd, buf, n);
+            }
+            if (--nready <= 0)
+               break; /* no more readable descriptors */
+         }
+      }
+   }
+   
+   return 0;
+}
+```
+
+***client***
+
+```cpp
+/* client.c */
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(int argc, char *argv[])
+{
+   struct sockaddr_in servaddr;
+   char buf[MAXLINE];
+   int sockfd, n;
+   
+   sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
+   servaddr.sin_port = htons(SERV_PORT);
+   
+   Connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   
+   while (fgets(buf, MAXLINE, stdin) != NULL) {
+      Write(sockfd, buf, strlen(buf));
+      n = Read(sockfd, buf, MAXLINE);
+   
+      if (n == 0)
+         printf("the other side has been closed.\n");
+      else
+         Write(STDOUT_FILENO, buf, n);
+   }
+   
+   Close(sockfd);
+   
+   return 0;
+}
+```
+
+##### 3.3.3.3. epoll
+
+epoll是Linux下多路复用IO接口select/poll的增强版本，它能显著提高程序在大量并发连接中只有少量活跃的情况下的系统CPU利用率，因为它会复用文件描述符集合来传递结果而不用迫使开发者每次等待事件之前都必须重新准备要被侦听的文件描述符集合，另一点原因就是获取事件的时候，它无须遍历整个被侦听的描述符集，只要遍历那些被内核IO事件异步唤醒而加入Ready队列的描述符集合就行了。
+目前epell是linux大规模并发网络程序中的热门首选模型。
+epoll除了提供select/poll那种IO事件的电平触发（Level Triggered）外，还提供了边沿触发（Edge Triggered），这就使得用户空间程序有可能缓存IO状态，减少epoll_wait/epoll_pwait的调用，提高应用程序效率。
+
+一个进程打开大数目的socket描述符
+
+```txt
+cat /proc/sys/fs/file-max
+
+9223372036854775807
+```
+
+设置最大打开文件描述符限制
+
+![设置最大打开文件描述符限制](MD/assert/Linux系统编程/3-3-3-3-设置最大打开文件描述符限制.png)
+
+```txt
+sudo vi /etc/security/limits.conf
+写入以下配置,soft软限制，hard硬限制
+* soft nofile 65536
+* hard nofile 100000
+```
+
+epoll API
+
+1. 创建一个epoll句柄，参数size用来告诉内核监听的文件描述符个数，跟内存大小有关(就是弄一棵树保存)
+
+```cpp
+#include <sys/epoll.h>
+int epoll_create(int size)
+// size：告诉内核监听的数目
+```
+
+2. 控制某个epoll监控的文件描述符上的事件：注册、修改、删除(就是向树里面插入、修改、删除节点)。
+
+```cpp
+#include <sys/epoll.h>
+int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event)
+/*
+epfd：为epoll_creat的句柄
+op：表示动作，用3个宏来表示：
+   EPOLL_CTL_ADD(注册新的fd到epfd)，
+   EPOLL_CTL_MOD(修改已经注册的fd的监听事件)，
+   EPOLL_CTL_DEL(从epfd删除一个fd)；
+fd：要操作的内和文件描述符
+event：告诉内核需要监听的事件
+*/
+struct epoll_event {
+   __uint32_t events; /* Epoll events */
+   epoll_data_t data; /* User data variable */
+};
+/* 要监听的事件
+   EPOLLIN ：表示对应的文件描述符可以读（包括对端SOCKET正常关闭）
+   EPOLLOUT：表示对应的文件描述符可以写
+   EPOLLPRI：表示对应的文件描述符有紧急的数据可读（这里应该表示有带外数据到来）
+   EPOLLERR：表示对应的文件描述符发生错误
+   EPOLLHUP：表示对应的文件描述符被挂断；
+   EPOLLET： 将EPOLL设为边缘触发(Edge Triggered)模式，这是相对于水平触发(Level Triggered)来说的
+   EPOLLONESHOT：只监听一次事件，当监听完这次事件之后，如果还需要继续监听这个socket的话，需要再次把这个socket加入到EPOLL队列里
+*/
+```
+
+3. 等待所监控文件描述符上有事件的产生，类似于select()调用(让它阻塞等待，当有就绪的文件描述符以后，把就绪的文件描述符拷贝的数组里面(就绪的数组由用户提供))。
+
+```cpp
+#include <sys/epoll.h>
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout)
+/*
+events：用来从内核得到事件的集合，
+maxevents：告之内核这个events有多大，这个maxevents的值不能大于创建epoll_create()时的size，
+timeout：是超时时间
+   -1：阻塞
+   0：立即返回，非阻塞
+   >0：指定微秒
+返回值：成功返回有多少文件描述符就绪，时间到时返回0，出错返回-1
+*/
+```
+
+***server***
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/epoll.h>
+#include <errno.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+#define OPEN_MAX 1024
+
+int main(int argc, char *argv[])
+{
+   int i, j, maxi, listenfd, connfd, sockfd;
+   int nready, efd, res;
+   ssize_t n;
+   char buf[MAXLINE], str[INET_ADDRSTRLEN];
+   socklen_t clilen;
+   int client[OPEN_MAX];
+   struct sockaddr_in cliaddr, servaddr;
+   struct epoll_event tep, ep[OPEN_MAX];
+   
+   listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+   servaddr.sin_port = htons(SERV_PORT);
+   Bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
+   Listen(listenfd, 20);
+   
+   for (i = 0; i < OPEN_MAX; i++)
+      client[i] = -1;
+   
+   maxi = -1;
+   efd = epoll_create(OPEN_MAX);
+   
+   if (efd == -1)
+      perr_exit("epoll_create");
+   
+   tep.events = EPOLLIN; tep.data.fd = listenfd;
+   res = epoll_ctl(efd, EPOLL_CTL_ADD, listenfd, &tep);
+   
+   if (res == -1)
+      perr_exit("epoll_ctl");
+   
+   for ( ; ; ) {
+      nready = epoll_wait(efd, ep, OPEN_MAX, -1); /* 阻塞监听 */
+      if (nready == -1)
+         perr_exit("epoll_wait");
+      for (i = 0; i < nready; i++) {
+         if (!(ep[i].events & EPOLLIN))
+            continue;
+         if (ep[i].data.fd == listenfd) {
+            clilen = sizeof(cliaddr);
+            connfd = Accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
+            
+            printf("received from %s at PORT %d\n", 
+               inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)), 
+               ntohs(cliaddr.sin_port));
+            
+            for (j = 0; j < OPEN_MAX; j++)
+               if (client[j] < 0) {
+                  client[j] = connfd; /* save descriptor */
+                  break;
+               }
+            
+            if (j == OPEN_MAX)
+               perr_exit("too many clients");
+            if (j > maxi)
+               maxi = j; /* max index in client[] array */
+            tep.events = EPOLLIN; tep.data.fd = connfd;
+            res = epoll_ctl(efd, EPOLL_CTL_ADD, connfd, &tep);
+            if (res == -1)
+               perr_exit("epoll_ctl");
+         }
+         else {
+            sockfd = ep[i].data.fd;
+            n = Read(sockfd, buf, MAXLINE);
+            if (n == 0) {
+               for (j = 0; j <= maxi; j++) {
+                  if (client[j] == sockfd) {
+                     client[j] = -1;
+                     break;
+                  }
+               }
+               res = epoll_ctl(efd, EPOLL_CTL_DEL, sockfd, NULL);
+               if (res == -1)
+                  perr_exit("epoll_ctl");
+               Close(sockfd);
+               printf("client[%d] closed connection\n", j);
+            }
+            else {
+               for (j = 0; j < n; j++)
+                  buf[j] = toupper(buf[j]);
+               Writen(sockfd, buf, n);
+            }
+         }
+      }
+   }
+   close(listenfd);
+   close(efd);
+   
+   return 0;
+}
+```
+
+***client***
+
+```cpp
+/* client.c */
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include "wrap.h"
+
+#define MAXLINE 80
+#define SERV_PORT 8000
+
+int main(int argc, char *argv[])
+{
+   struct sockaddr_in servaddr;
+   char buf[MAXLINE];
+   int sockfd, n;
+   
+   sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+   bzero(&servaddr, sizeof(servaddr));
+   servaddr.sin_family = AF_INET;
+   inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
+   servaddr.sin_port = htons(SERV_PORT);
+   Connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+   
+   while (fgets(buf, MAXLINE, stdin) != NULL) {
+      Write(sockfd, buf, strlen(buf));
+      n = Read(sockfd, buf, MAXLINE);
+      if (n == 0)
+         printf("the other side has been closed.\n");
+      else
+         Write(STDOUT_FILENO, buf, n);
+   }
+   Close(sockfd);
+   
+   return 0;
+}
+```
+
+#### 3.3.4. 线程池并发服务器
+
+都是提前创建一些线程，节省了创建线程的时间
+
+三那种方式:
+
+1. 每个线程都阻塞于accept上，当有客户端连接时，阻塞accept上的线程都被唤醒，竞争，只有一个线程去处理accept，其它线程继续阻塞
+2. 设置一个主控线程，主控线程accept，其它任务线程等待主控线程分配任务
+3. 每个线程先争抢一把锁，谁抢到这把mutex，谁去accept
+   - 预先创建阻塞于accept多线程，使用互斥锁上锁保护accept
+
+```cpp
+// 主要来说说第三种方法:
+// 过程
+pthread_mutex_lock(&mutex); // 抢到的线程上锁
+accept(listenfd, &addr, &addlen); // 它自己来accept
+pthread_mutex_unlock(&mutex); // 它accept结束后其它线程也就不抢锁了(这个吧，要看看线程竞争机制了)
+// 处理客户端请求
+
+// 阈值
+max_work_num =1000
+min_work_num = 50
+cur_work_num = 100
+this_work_num = 45
+
+STATUS = BUSY
+```
+
+![线程池](MD/assert/Linux系统编程/3-3-4-线程池.png)
+
+#### 3.3.5. UDP局域网服务器
+
+实现一对多发送，忽略ip的概念，把一批ip设置为一组，把消息发送给这个组。
+
+端口号仍然有意义，用来标识客户端的进程
+
+##### 多播
+
+组播组可以是永久的也可以是临时的。组播组地址中，有一部分由官方分配的，成为永久组播组。永久组播组保持不变的是它的ip地址，组中的成员构成可以发生变化。永久组播组中成员的数量都可以是任意的，甚至可以为零。那些没有保留下来供永久组播组使用的ip组播地址，可以被临时组播组利用
+
+```cpp
+224.0.0.0~224.0.0.255为预留的组播地址(永久组播地址),地址为224.0.0.0保留不做分配，其它地址供路由协议使用。
+224.0.1.0~224.0.1.255是公用组播地址，可以用于Internet。
+224.0.2.0~238.255.255.255为用户可用的组播地址(临时组地址)，全网范围内有效。
+224.0.0.0~239.255.255.255为本地管理组播地址，仅在特定的本地范围内有效。
+```
+
+ip ad
+查看网卡编号
+if_nametoindex
+
+#### 3.3.6. 其他常用函数
+
+名字与地址转换
+过时，仅用于IPv4，线程不安全
+gethostbyname : 通过名字得到主机信息
+
+```cpp
+#include <stdio.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+extern int h_errno;
+
+int main(int argc, char *argv[])
+{
+   struct hostnet *host;
+   char str[128];
+   host = gethostbyname(argv[1]);
+   printf("%s\n", host->h_name);
+
+   while (*(host->h_aliases) != NULL)
+      printf("%s\n", *host->h_aliases++);
+
+   switch (host->h_addrtype) {
+   case AF_INET:
+      while (*(host->h_addr_list) != NULL)
+         printf("%s\n", inet_ntop(AF_INET, (*host->h_addr_list++), str, sizeof(str)));
+      break;
+   default:
+      printf("unknown address type\n");
+      break;
+   }
+   return 0;
+}
+```
+
+gethostbyaddr:获取域名解析服务器的url和/etc/hosts里登记的IP对应的域名
+
+```cpp
+#include <stdio.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+extern int h_errno;
+
+int main(int argc, char *argv[])
+{
+   struct hostnet *host;
+   char str[128];
+   struct in_addr addr;
+   inet_pton(AF_INET, argv[1], &addr);
+   
+   host = gethostbyaddr((char *)&addr, 4, AF_INET);
+   printf("%s\n", host->h_name);
+
+   while (*(host->h_aliases) != NULL)
+      printf("%s\n", *host->h_aliases++);
+
+   switch (host->h_addrtype) {
+   case AF_INET:
+      while (*(host->h_addr_list) != NULL)
+         printf("%s\n", inet_ntop(AF_INET, (*host->h_addr_list++), str, sizeof(str)));
+      break;
+   default:
+      printf("unknown address type\n");
+      break;
+   }
+   return 0;
+}
+```
+
+
+getservbyname
+getservbyport
+根据服务器程序名字或端口号获取信息
+getaddrinfo
+getnameinfo
+趋势，可同时处理IPv4和IPv6，线程安全
+
+***套接口和地址关联***
+
+getsockname
+根据accept返回的sockfd，得到临时端口号
+getpeername
+根据accept返回的sockfd，得到远端链接的端口号，在exec后可以获取客户端信息。
 
 ## 4. shell编程
 
